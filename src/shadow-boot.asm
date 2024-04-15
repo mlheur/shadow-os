@@ -2,22 +2,24 @@
 
 section .text
 	bootloader:
-		call printram
+		call printrom
+		call crlf
+		call printFirstCall
 		jmp poweroff
 	
 	szout:
 		pusha
 		loadchar:
-			mov al,[si]
+			mov al,[esi]
 			cmp al,0
 			jne charout
+		popa
+		ret
 		charout:
 			mov ah,0x0e
 			int 0x10
-			inc si
+			inc esi
 			jmp loadchar
-		popa
-		ret
 	
 	hexout:
 		; How to convert hex to ascii in 8086 assembly
@@ -32,13 +34,15 @@ section .text
 		ret
 	
 	printbreg:
+		; ebx contains the thing to print
+		; ecx contains the qty of bits to print
 		pusha
 		nextb:
 			sub cl,4
-			mov ax,bx
-			shr ax,cl
+			mov eax,ebx
+			shr eax,cl
 			call hexout
-			cmp cx,0
+			cmp ecx,0
 			jne nextb
 		popa
 		ret
@@ -56,29 +60,55 @@ section .text
 		int 0x10
 		ret
 	
-	printram:
+	printFirstCall:
+		; ROM:FFFFFFF0  EA 5B E0 00 F0 30 36 2F  32 33 2F 39 39 00 FC 00
 		pusha
-		mov edi,0
+		mov esi,0x000FE000	; print start address
+		mov edi,0x000FE100	; print end address
+		call printram
+		popa
+		ret
+
+	printrom:
+		pusha
+		mov esi,0xFFFFFFF0
+		mov edi,0x00000000
+		call printram
+		popa
+		ret
+
+	printram:
+		; esi contains the start address
+		; edi contains the end address
+		pusha
 		nextaddr:
 			; print the addr
-			mov bx,di
-			mov cx,32
+			mov ebx,esi
+			mov ecx,32
 			call printbreg
+			call space
 			
-			mov dx,8 ; entries per line
+			mov edx,0x10 ; entries per line
 			nextbyte:
 				call space
+
 				; print the data
-				mov bx,[di]
-				mov cx,16 ; bits per entry
+				mov ebx,[esi]
+				mov ecx,0x08 ; bits per entry
 				call printbreg
-				; next four bytes
-				add di,2 ; depends on bits per entry
-				dec dx
-				cmp dx,0x0000
-				jne nextbyte
+
+				; after the halfway point, print an extra space
+				cmp edx,0x09
+				jne doincrement
+				call space
+
+				doincrement:
+					inc esi
+					dec edx
+					cmp edx,0
+					jne nextbyte
 			call crlf
-			cmp di,0x0100
+			cmp esi,edi
 			jne nextaddr
 		popa
 		ret
