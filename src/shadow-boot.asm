@@ -5,19 +5,19 @@ section .text
 		call printram
 		jmp poweroff
 	
-	printf:
+	szout:
 		pusha
 		loadchar:
 			mov al,[si]
 			cmp al,0
 			jne charout
-		popa
-		ret
 		charout:
 			mov ah,0x0e
 			int 0x10
-			add si,1
+			inc si
 			jmp loadchar
+		popa
+		ret
 	
 	hexout:
 		; How to convert hex to ascii in 8086 assembly
@@ -35,10 +35,10 @@ section .text
 		pusha
 		nextb:
 			sub cl,4
-			mov eax,ebx
-			shr eax,cl
+			mov ax,bx
+			shr ax,cl
 			call hexout
-			cmp ecx,0
+			cmp cx,0
 			jne nextb
 		popa
 		ret
@@ -61,23 +61,24 @@ section .text
 		mov edi,0
 		nextaddr:
 			; print the addr
-			mov ebx,edi
-			mov ecx,32
+			mov bx,di
+			mov cx,32
 			call printbreg
 			
-			mov edx,8 ; entries per line
+			mov dx,8 ; entries per line
 			nextbyte:
 				call space
 				; print the data
-				mov ebx,[edi]
-				mov ecx,32 ; bits per entry
+				mov bx,[di]
+				mov cx,16 ; bits per entry
 				call printbreg
 				; next four bytes
-				add edi,4 ; depends on bits per entry
-				sub edx,1
-				cmp edx,0
+				add di,2 ; depends on bits per entry
+				dec dx
+				cmp dx,0x0000
 				jne nextbyte
-			cmp edi,0
+			call crlf
+			cmp di,0x0100
 			jne nextaddr
 		popa
 		ret
@@ -87,9 +88,8 @@ section .text
 		mov ah,0x53
 		mov al,0x07
 		mov bx,0x0001
-		mov cx,0x03
+		mov cx,0x0003
 		int 0x15
-		hlt
 	
 	padding:
 		times 510-($-$$) db 0 ; byte padding
