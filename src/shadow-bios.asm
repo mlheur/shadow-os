@@ -7,16 +7,12 @@ org BIOSSEGMENT
 section .biosmain
   db  'shadow-bios'
 init:
-  mov eax,0xFEDC
-  mov ebx,0xBA09
-  mov ecx,0x8765
-  mov edx,0x4321
   call testcom1
   jmp poweroff
 
 testcom1:
   push eax
-  mov eax,0xFADE
+  mov eax,0xCAB1FADE
   call eaxout
   pop eax
   ret
@@ -24,34 +20,19 @@ testcom1:
 eaxout:
   push edx
   mov edx,COM1
-
-  ; use bx to hold ax for reuse
-  push ebx
-  mov ebx,eax
-
-  ; print upper 4 bits
-  shr eax,12
+  push ecx
+  mov ecx,32
+  push eax
+nibbleout:
+  mov eax,[SS:ESP]
+  jecxz eaxisout
+  sub ecx,4
+  shr eax,cl
   call hexal4out
-
-  ; print next 4 bits
-  mov eax,ebx
-  shr ax,8
-  call hexal4out
-
-  ; print next 4 bits
-  mov eax,ebx
-  shr eax,4
-  call hexal4out
-
-  ; print last 4 bits
-  mov eax,ebx
-  and eax,0x000F
-  call hexal4out
-
-  ; restore ax
-  mov eax,ebx
-  ; restore bx
-  pop ebx
+  jmp nibbleout
+eaxisout:
+  pop eax
+  pop ecx
   pop edx
   ret
 
