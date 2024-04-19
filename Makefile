@@ -1,12 +1,13 @@
 EMUL      = "qemu-system-i386"
 BOOT      = "release/shadow-boot.bin"
 BIOS      = "release/shadow-bios.bin"
+FDAOPTS   = "index=0,if=floppy,format=raw"
 
 run : ${BOOT}
-	${EMUL} -nographic -fda ${BOOT}
+	${EMUL} -nographic -drive file=${BOOT},${FDAOPTS}
 
 run-bios : ${BOOT} ${BIOS}
-	${EMUL} -nographic -m 1M -d cpu -bios ${BIOS} -singlestep -D qemu-debug.log -fda ${BOOT}
+	${EMUL} -nographic -m 1M -d cpu -bios ${BIOS} -singlestep -D qemu-debug.log -drive file=${BOOT},${FDAOPTS}
 
 
 ${BIOS} : build/shadow-bios.o
