@@ -6,12 +6,12 @@ org BIOSSEGMENT
 section .biosmain
   db  'shadow-bios'
 init:
-  mov eax,0xFEDC
-  mov ebx,0xBA09
-  mov ecx,0x8765
-  mov edx,0x4321
+  mov ax,0xFEDC
+  mov bx,0xBA09
+  mov cx,0x8765
+  mov dx,0x4321
   jmp poweroff
-  
+
 poweroff:
   times 0xfff0-($-$$) hlt
 
