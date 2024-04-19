@@ -6,7 +6,7 @@ run : ${BOOT}
 	${EMUL} -nographic -fda ${BOOT}
 
 run-bios : ${BOOT} ${BIOS}
-	${EMUL} -nographic -d cpu -bios ${BIOS} -singlestep -D q.log -fda ${BOOT}
+	${EMUL} -nographic -m 1M -d cpu -bios ${BIOS} -singlestep -D qemu-debug.log -fda ${BOOT}
 
 
 ${BIOS} : build/shadow-bios.o

@@ -1,5 +1,7 @@
+%define BIOSSEGMENT 0xffff0000
+
 bits 16
-org 0xFFFF0000
+org BIOSSEGMENT
 
 section .biosmain
   db  '(C) mlheur@gmail.com'
@@ -16,6 +18,6 @@ padding:
 bits 16
 section .rvec
   rvec:
-    jmp word 0xFFFF0000+init
+    jmp word BIOSSEGMENT+init
     times 0x10-1-(($-$$)) hlt ; byte padding
     db 0x00
