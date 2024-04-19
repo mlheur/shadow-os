@@ -7,53 +7,52 @@ org BIOSSEGMENT
 section .biosmain
   db  'shadow-bios'
 init:
-  mov ax,0xFEDC
-  mov bx,0xBA09
-  mov cx,0x8765
-  mov dx,0x4321
+  mov eax,0xFEDC
+  mov ebx,0xBA09
+  mov ecx,0x8765
+  mov edx,0x4321
   call testcom1
   jmp poweroff
 
 testcom1:
-  pusha
-  mov dx,COM1
-  mov ax,0xFADE
-  call axout
-  popa
+  push eax
+  mov eax,0xFADE
+  call eaxout
+  pop eax
   ret
 
-axout:
+eaxout:
+  push edx
+  mov edx,COM1
+
   ; use bx to hold ax for reuse
-  push bx
-  mov bx,ax
+  push ebx
+  mov ebx,eax
 
   ; print upper 4 bits
-  and ax,0xF000
-  shr ax,12
+  shr eax,12
   call hexal4out
 
   ; print next 4 bits
-  mov ax,bx
-  and ax,0x0F00
+  mov eax,ebx
   shr ax,8
   call hexal4out
 
   ; print next 4 bits
-  mov ax,bx
-  and ax,0x00F0
-  shr ax,4
+  mov eax,ebx
+  shr eax,4
   call hexal4out
 
   ; print last 4 bits
-  mov ax,bx
-  and ax,0x000F
+  mov eax,ebx
+  and eax,0x000F
   call hexal4out
 
   ; restore ax
-  mov ax,bx
+  mov eax,ebx
   ; restore bx
-  pop bx
-
+  pop ebx
+  pop edx
   ret
 
 hexal4out:
@@ -66,11 +65,9 @@ hexal4out:
   ret
 
 comout:
-  pusha
   ; ax has the byte to write
   ; dx has the CPU IO address
   out dx,ax
-  popa
   ret
 
 poweroff:
