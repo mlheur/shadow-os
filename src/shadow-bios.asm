@@ -4,7 +4,7 @@ bits 16
 org BIOSSEGMENT
 
 section .biosmain
-  db  '(C) mlheur@gmail.com'
+  db  'shadow-bios'
   init:
     mov eax,0xFEDC
     mov ebx,0xBA09
