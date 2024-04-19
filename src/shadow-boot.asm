@@ -63,15 +63,15 @@ section .text
 	printFirstCall:
 		; ROM:FFFFFFF0  EA 5B E0 00 F0 30 36 2F  32 33 2F 39 39 00 FC 00
 		pusha
-		mov esi,0x000FE000	; print start address
-		mov edi,0x000FE100	; print end address
+		mov esi,0x000FFF80	; print start address
+		mov edi,0x00100000	; print end address
 		call printram
 		popa
 		ret
 
 	printrom:
 		pusha
-		mov esi,0xFFFFFFF0
+		mov esi,0xFFFFFF80
 		mov edi,0x00000000
 		call printram
 		popa
