@@ -7,7 +7,7 @@ run : ${BOOT}
 	${EMUL} -nographic -drive file=${BOOT},${FDAOPTS}
 
 run-bios : ${BOOT} ${BIOS}
-	${EMUL} -nographic -m 1M -d cpu -bios ${BIOS} -singlestep -D qemu-debug.log -drive file=${BOOT},${FDAOPTS}
+	${EMUL} -nographic -m 1M -d cpu -bios ${BIOS} -D qemu-debug.log
 
 
 ${BIOS} : build/shadow-bios.o
@@ -23,7 +23,7 @@ ${BOOT} : build/shadow-boot.o
 
 build/%.o: src/%.asm Makefile
 	test -d build || mkdir build
-	nasm $< -f bin -o $@
+	nasm $< -l $@.lst -f bin -o $@
 
 clean :
 	rm -fr build release
