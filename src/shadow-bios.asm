@@ -10,9 +10,9 @@ init:
   mov ebx,0xBA09
   mov ecx,0x8765
   mov edx,0x4321
-  hlt
+  jmp poweroff
   
-padding:
+poweroff:
   times 0xfff0-($-$$) hlt
 
 bits 16
