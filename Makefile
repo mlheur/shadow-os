@@ -1,29 +1,23 @@
-EMUL      = "qemu-system-i386"
-BOOT      = "release/shadow-boot.bin"
-BIOS      = "release/shadow-bios.bin"
-FDAOPTS   = "index=0,if=floppy,format=raw"
+ASM	= nasm
+SDIR	= src
+BDIR	= build
+RDIR	= release
+SUBDIRS	= $(BDIR) $(RDIR)
+DEPS	= Makefile
 
-run : ${BOOT}
-	${EMUL} -nographic -drive file=${BOOT},${FDAOPTS}
+THIS 	= $(shell basename $@ .rom)
+MKDIR   = $(shell test -d $@ || mkdir -p $@)
 
-run-bios : ${BOOT} ${BIOS}
-	${EMUL} -nographic -m 1M -bios ${BIOS}
+.PHONY: bios clean subdirs
 
-
-${BIOS} : build/shadow-bios.o
-	test -d release || mkdir -p release
-	cp $< $@
-
-
-${BOOT} : build/shadow-boot.o
-	test -d release || mkdir -p release
-	dd if=$<        of=$@ bs=512        count=1
-	dd if=/dev/zero of=$@ bs=512 seek=1 count=2879
-
-
-build/%.o: src/%.asm Makefile
-	test -d build || mkdir build
-	nasm $< -l $@.lst -f bin -o $@
+bios : $(RDIR)/bios.rom $(DEPS)
+	qemu-system-i386 -nographic -m 1M -bios $<
 
 clean :
-	rm -fr build release
+	rm -fr $(SUBDIRS)
+
+$(BDIR): ; $(MKDIR)
+$(RDIR): ; $(MKDIR)
+
+$(RDIR)/%.rom: $(SDIR)/%.asm $(DEPS) $(SUBDIRS)
+	$(ASM) -l $(BDIR)/$(THIS).lst -f bin -o $(RDIR)/$(THIS).rom $<
