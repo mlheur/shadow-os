@@ -7,7 +7,7 @@ run : ${BOOT}
 	${EMUL} -nographic -drive file=${BOOT},${FDAOPTS}
 
 run-bios : ${BOOT} ${BIOS}
-	${EMUL} -nographic -m 1M -d cpu -bios ${BIOS} -D qemu-debug.log
+	${EMUL} -nographic -m 1M -bios ${BIOS}
 
 
 ${BIOS} : build/shadow-bios.o
