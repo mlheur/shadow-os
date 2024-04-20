@@ -8,8 +8,42 @@ signature:
   db  'shadow-bios',0x0
 init:
   call printsignature
-  call memout
+  call regsout
   jmp poweroff
+
+db 'eax',0
+db 'ebx',0
+db 'ecx',0
+db 'edx',0
+regsout:
+  pusha
+  push eax
+  mov eax,regsout-16
+  call szout
+  call space
+  pop eax
+  call eaxout
+  call crlf
+  mov eax,regsout-12
+  call szout
+  call space
+  mov eax,ebx
+  call eaxout
+  call crlf
+  mov eax,regsout-8
+  call szout
+  call space
+  mov eax,ecx
+  call eaxout
+  call crlf
+  mov eax,regsout-4
+  call szout
+  call space
+  mov eax,edx
+  call eaxout
+  call crlf
+  popa
+  ret
 
 memout:
   push eax
