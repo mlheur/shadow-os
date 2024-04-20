@@ -6,23 +6,50 @@ org BIOSSEGMENT
 
 section .biosmain
 signature:
-  db  'shadow-bios',0x0d,0x0a,0x00
+  db  'shadow-bios',0x0
 init:
-  call testcom1
+  call printsignature
+  call printIVT
   jmp poweroff
 
-testcom1:
+printIVT:
+  push eax
+  push ebx
+  push esi
+  mov esi,0
+nextIVT:
+  sub esi,4
+  mov eax,esi
+  mov ebx,[esi]
+  cmp ebx,0
+  jz dontprint
+doprint:
+  call eaxout
+  call space
+  mov eax,ebx
+  call eaxout
+  call crlf
+dontprint:
+  cmp esi,0
+  jz endIVT
+  jmp nextIVT
+endIVT:
+  pop esi
+  pop ebx
+  pop eax
+  ret
+
+printsignature:
   push eax
   mov eax,signature
   call szout
+  call crlf
   pop eax
   ret
 
 szout:
-  push edx
   push esi
   push eax
-  mov edx,COM1
   mov esi,eax
 nextchar:
   mov al,[esi]
@@ -34,12 +61,9 @@ nextchar:
 szisout:
   pop eax
   pop esi
-  pop edx
   ret
 
 eaxout:
-  push edx
-  mov edx,COM1
   push ecx
   mov ecx,32
   push eax
@@ -53,7 +77,6 @@ nibbleout:
 eaxisout:
   pop eax
   pop ecx
-  pop edx
   ret
 
 hexal4out:
@@ -65,14 +88,33 @@ hexal4out:
   call comout
   ret
 
+crlf
+  push eax
+  mov eax,0xd
+  call comout
+  mov eax,0xa
+  call comout
+  pop eax
+  ret
+
+space:
+  push eax
+  mov eax,' '
+  call comout
+  pop eax
+  ret
+
 comout:
   ; ax has the byte to write
-  ; dx has the CPU IO address
+  push edx
+  mov edx,COM1
   out dx,ax
+  pop edx
   ret
 
 poweroff:
-  times 0xfff0-($-$$) hlt
+  hlt
+  times 0xfff0-($-$$) db 0
 
 bits 16
 section .rvec
