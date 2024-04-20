@@ -1,7 +1,6 @@
 %define BIOSSEGMENT 0xffff0000
 %define COM1 0x3F8
 
-bits 16
 org BIOSSEGMENT
 
 section .biosmain
@@ -9,31 +8,30 @@ signature:
   db  'shadow-bios',0x0
 init:
   call printsignature
-  call printIVT
+  call memout
   jmp poweroff
 
-printIVT:
+memout:
   push eax
   push ebx
   push esi
   mov esi,0
-nextIVT:
+nextmem:
   sub esi,4
   mov eax,esi
   mov ebx,[esi]
   cmp ebx,0
-  jz dontprint
-doprint:
+  jz nomemout
   call eaxout
   call space
   mov eax,ebx
   call eaxout
   call crlf
-dontprint:
+nomemout:
   cmp esi,0
-  jz endIVT
-  jmp nextIVT
-endIVT:
+  jz endmemout
+  jmp nextmem
+endmemout:
   pop esi
   pop ebx
   pop eax
@@ -88,7 +86,7 @@ hexal4out:
   call comout
   ret
 
-crlf
+crlf:
   push eax
   mov eax,0xd
   call comout
@@ -116,7 +114,6 @@ poweroff:
   hlt
   times 0xfff0-($-$$) db 0
 
-bits 16
 section .rvec
 rvec:
   jmp word BIOSSEGMENT+init
