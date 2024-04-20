@@ -5,16 +5,36 @@ bits 16
 org BIOSSEGMENT
 
 section .biosmain
-  db  'shadow-bios'
+signature:
+  db  'shadow-bios',0x0d,0x0a,0x00
 init:
   call testcom1
   jmp poweroff
 
 testcom1:
   push eax
-  mov eax,0xCAB1FADE
-  call eaxout
+  mov eax,signature
+  call szout
   pop eax
+  ret
+
+szout:
+  push edx
+  push esi
+  push eax
+  mov edx,COM1
+  mov esi,eax
+nextchar:
+  mov al,[esi]
+  cmp al,0x00
+  jz szisout
+  call comout
+  add esi,1
+  jmp nextchar
+szisout:
+  pop eax
+  pop esi
+  pop edx
   ret
 
 eaxout:
@@ -24,7 +44,7 @@ eaxout:
   mov ecx,32
   push eax
 nibbleout:
-  mov eax,[SS:ESP]
+  mov eax,[ss:esp]
   jecxz eaxisout
   sub ecx,4
   shr eax,cl
