@@ -6,43 +6,78 @@ org BIOSSEGMENT
 section .biosmain
 signature:
   db  'shadow-bios',0x0
+regstrings:
+  db 'eax',0
+  db 'ebx',0
+  db 'ecx',0
+  db 'edx',0
+  db 'esp',0
+  db 'ebp',0
+  db 'esi',0
+  db 'edi',0
+
 init:
   call printsignature
+  mov eax,0xFFEEDDCC
+  mov ebx,0xBBAA9988
+  mov ecx,0x77665544
+  mov edx,0x33221100
+  mov esi,0x1f2e3d4c
+  mov edi,0x5a6b7098
   call regsout
   jmp poweroff
 
-db 'eax',0
-db 'ebx',0
-db 'ecx',0
-db 'edx',0
 regsout:
-  pusha
-  push eax
-  mov eax,regsout-16
+  pushad
+  mov eax,regstrings
   call szout
   call space
-  pop eax
+  mov eax,[esp+28]
   call eaxout
-  call crlf
-  mov eax,regsout-12
+  call space
+  mov eax,regstrings+4
   call szout
   call space
-  mov eax,ebx
+  mov eax,[esp+16]
   call eaxout
-  call crlf
-  mov eax,regsout-8
+  call space
+  mov eax,regstrings+8
   call szout
   call space
-  mov eax,ecx
+  mov eax,[esp+24]
   call eaxout
-  call crlf
-  mov eax,regsout-4
+  call space
+  mov eax,regstrings+12
   call szout
   call space
-  mov eax,edx
+  mov eax,[esp+20]
   call eaxout
   call crlf
-  popa
+  mov eax,regstrings+16
+  call szout
+  call space
+  mov eax,[esp+12]
+  call eaxout
+  call space
+  mov eax,regstrings+20
+  call szout
+  call space
+  mov eax,[esp+8]
+  call eaxout
+  call space
+  mov eax,regstrings+24
+  call szout
+  call space
+  mov eax,[esp+4]
+  call eaxout
+  call space
+  mov eax,regstrings+28
+  call szout
+  call space
+  mov eax,[esp+0]
+  call eaxout
+  call crlf
+  popad
   ret
 
 memout:
@@ -50,7 +85,7 @@ memout:
   push ebx
   push esi
   mov esi,0
-nextmem:
+nextmemout:
   sub esi,4
   mov eax,esi
   mov ebx,[esi]
@@ -64,7 +99,7 @@ nextmem:
 nomemout:
   cmp esi,0
   jz endmemout
-  jmp nextmem
+  jmp nextmemout
 endmemout:
   pop esi
   pop ebx
@@ -83,14 +118,14 @@ szout:
   push esi
   push eax
   mov esi,eax
-nextchar:
+nextszout:
   mov al,[esi]
   cmp al,0x00
-  jz szisout
+  jz endszout
   call comout
   add esi,1
-  jmp nextchar
-szisout:
+  jmp nextszout
+endszout:
   pop eax
   pop esi
   ret
@@ -99,19 +134,19 @@ eaxout:
   push ecx
   mov ecx,32
   push eax
-nibbleout:
+nexteaxout:
   mov eax,[ss:esp]
-  jecxz eaxisout
+  jecxz endeaxout
   sub ecx,4
   shr eax,cl
-  call hexal4out
-  jmp nibbleout
-eaxisout:
+  call hex2asciiout
+  jmp nexteaxout
+endeaxout:
   pop eax
   pop ecx
   ret
 
-hexal4out:
+hex2asciiout:
   and al,0x0F
   add al,0x90
   daa
