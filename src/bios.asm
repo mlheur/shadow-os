@@ -4,20 +4,18 @@
 org BIOSSEGMENT
 
 section .biosmain
-signature:
-  db  'shadow-bios',0x0
-regstrings:
-  db 'eax',0
-  db 'ebx',0
-  db 'ecx',0
-  db 'edx',0
-  db 'esp',0
-  db 'ebp',0
-  db 'esi',0
-  db 'edi',0
+
+signature: db 'shadow-bios',0x0
+label_eax: db 'eax:',0
+label_ebx: db 'ebx:',0
+label_ecx: db 'ecx:',0
+label_edx: db 'edx:',0
+label_esp: db 'esp:',0
+label_ebp: db 'ebp:',0
+label_esi: db 'esi:',0
+label_edi: db 'edi:',0
 
 init:
-  cli
   call printsignature
   call testregs
   jmp poweroff
@@ -46,51 +44,43 @@ testregs:
 
 regsout:
   pushad
-  mov eax,regstrings
+  mov eax,label_eax
   call szout
-  call space
   mov eax,[esp+28]
   call eaxout
   call space
-  mov eax,regstrings+4
+  mov eax,label_ebx
   call szout
-  call space
   mov eax,[esp+16]
   call eaxout
   call space
-  mov eax,regstrings+8
+  mov eax,label_ecx
   call szout
-  call space
   mov eax,[esp+24]
   call eaxout
   call space
-  mov eax,regstrings+12
+  mov eax,label_edx
   call szout
-  call space
   mov eax,[esp+20]
   call eaxout
   call crlf
-  mov eax,regstrings+16
+  mov eax,label_esp
   call szout
-  call space
   mov eax,[esp+12]
   call eaxout
   call space
-  mov eax,regstrings+20
+  mov eax,label_ebp
   call szout
-  call space
   mov eax,[esp+8]
   call eaxout
   call space
-  mov eax,regstrings+24
+  mov eax,label_esi
   call szout
-  call space
   mov eax,[esp+4]
   call eaxout
   call space
-  mov eax,regstrings+28
+  mov eax,label_edi
   call szout
-  call space
   mov eax,[esp+0]
   call eaxout
   call crlf
