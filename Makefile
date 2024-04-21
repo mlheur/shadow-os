@@ -10,8 +10,8 @@ MKDIR   = $(shell test -d $@ || mkdir -p $@)
 
 .PHONY: bios clean subdirs
 
-bios : $(RDIR)/bios.rom $(DEPS)
-	qemu-system-i386 -nographic -m 1M -bios $<
+boot : $(RDIR)/boot.rom $(DEPS)
+	qemu-system-i386 -serial stdio -drive file=$<,index=0,if=floppy,format=raw
 
 clean :
 	rm -fr $(SUBDIRS)
