@@ -17,16 +17,11 @@ label_edi: db 'edi:',0
 
 init:
   call printsignature
-  call testregs
+  call printIVT
   jmp poweroff
 
 testregs:
-  push eax
-  push ebx
-  push ecx
-  push edx
-  push esi
-  push edi
+  pushad
   mov eax,0xfedcba09
   mov ebx,0x90abcdef
   mov ecx,0x87654321
@@ -34,12 +29,7 @@ testregs:
   mov esi,0xffeeddcc
   mov edi,0xbbaa0099
   call regsout
-  pop edi
-  pop esi
-  pop edx
-  pop ecx
-  pop ebx
-  pop eax
+  popad
   ret
 
 regsout:
@@ -87,30 +77,32 @@ regsout:
   popad
   ret
 
+printIVT:
+  pushad
+  mov esi,0x00000400
+  mov edi,0
+  jmp nextmemout
 memout:
-  push eax
-  push ebx
-  push esi
+  pushad
   mov esi,0
+  mov edi,0
 nextmemout:
   sub esi,4
   mov eax,esi
-  mov ebx,[esi]
-  cmp ebx,0
-  jz nomemout
+;  mov ebx,[esi]
+;  cmp ebx,edi
+;  jz nomemout
   call eaxout
   call space
   mov eax,ebx
   call eaxout
   call crlf
 nomemout:
-  cmp esi,0
+  cmp esi,edi
   jz endmemout
   jmp nextmemout
 endmemout:
-  pop esi
-  pop ebx
-  pop eax
+  popad
   ret
 
 printsignature:
