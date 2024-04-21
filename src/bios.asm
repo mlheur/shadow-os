@@ -17,15 +17,32 @@ regstrings:
   db 'edi',0
 
 init:
+  cli
   call printsignature
-  mov eax,0xFFEEDDCC
-  mov ebx,0xBBAA9988
-  mov ecx,0x77665544
-  mov edx,0x33221100
-  mov esi,0x1f2e3d4c
-  mov edi,0x5a6b7098
-  call regsout
+  call testregs
   jmp poweroff
+
+testregs:
+  push eax
+  push ebx
+  push ecx
+  push edx
+  push esi
+  push edi
+  mov eax,0xfedcba09
+  mov ebx,0x90abcdef
+  mov ecx,0x87654321
+  mov edx,0x12345678
+  mov esi,0xffeeddcc
+  mov edi,0xbbaa0099
+  call regsout
+  pop edi
+  pop esi
+  pop edx
+  pop ecx
+  pop ebx
+  pop eax
+  ret
 
 regsout:
   pushad
