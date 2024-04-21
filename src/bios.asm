@@ -1,5 +1,21 @@
-%define BIOSSEGMENT 0xffff0000
-%define COM1 0x3F8
+%define BIOSSEGMENT   0xffff0000
+%define RELOCSEGMENT  0x000f0000
+%define COM1               0x3F8
+
+; MEMORY LAYOUT
+; 0xFFFFFFFF - 0xFFFF0000  this BIOS
+; 0xFEFFFFFF - 0xFEEFF400  free
+; 0xFEEFF3FF - 0xFEEFF000  QEMU: is this the IVT?
+; 0xFEEFFFFF - 0xFEEFE400  free
+; 0xFEEFE3FF - 0xFEEFF000  more of the same?
+; 0xFEExxFFF - 0xFEExx400  repeats in every segment
+; 0xFEExx3FF - 0xFEExx000  repeats in every segment
+; 0xFEDFFFFF - 0xFED00150  free 8086 compat
+; 0xFED0014F - 0xFED00000  8086 compat IVT
+; 0xFECFFFFF - 0x00100000  free
+; 0x000FFFFF - 0x000F0000  relocated BIOS
+; 0x000EFFFF - 0x00010000  free
+; 0x0000FFFF - 0x00000000  first stack
 
 org BIOSSEGMENT
 
