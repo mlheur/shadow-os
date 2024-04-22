@@ -1,6 +1,7 @@
 %define BIOSSEGMENT   0xffff0000
 %define RELOCSEGMENT  0x000f0000
-%define COM1               0x3F8
+
+%include 'ttyout.asm'
 
 ; MEMORY LAYOUT
 ; 0xFFFFFFFF - 0xFFFF0000  this BIOS
@@ -50,56 +51,59 @@ testregs:
 
 regsout:
   pushad
+  iCOM1
   mov eax,label_eax
-  call szout
+  call sztty
   mov eax,[esp+28]
-  call eaxout
-  call space
+  call eaxtty
+  space
   mov eax,label_ebx
-  call szout
+  call sztty
   mov eax,[esp+16]
-  call eaxout
-  call space
+  call eaxtty
+  space
   mov eax,label_ecx
-  call szout
+  call sztty
   mov eax,[esp+24]
-  call eaxout
-  call space
+  call eaxtty
+  space
   mov eax,label_edx
-  call szout
+  call sztty
   mov eax,[esp+20]
-  call eaxout
-  call crlf
+  call eaxtty
+  crlf
   mov eax,label_esp
-  call szout
+  call sztty
   mov eax,[esp+12]
-  call eaxout
-  call space
+  call eaxtty
+  space
   mov eax,label_ebp
-  call szout
+  call sztty
   mov eax,[esp+8]
-  call eaxout
-  call space
+  call eaxtty
+  space
   mov eax,label_esi
-  call szout
+  call sztty
   mov eax,[esp+4]
-  call eaxout
-  call space
+  call eaxtty
+  space
   mov eax,label_edi
-  call szout
+  call sztty
   mov eax,[esp+0]
-  call eaxout
-  call crlf
+  call eaxtty
+  crlf
   popad
   ret
 
 printIVT:
   pushad
+  iCOM1
   mov esi,0x00000400
   mov edi,0
   jmp nextmemout
 memout:
   pushad
+  iCOM1
   mov esi,0
   mov edi,0
 nextmemout:
@@ -108,11 +112,11 @@ nextmemout:
 ;  mov ebx,[esi]
 ;  cmp ebx,edi
 ;  jz nomemout
-  call eaxout
-  call space
+  call eaxtty
+  space
   mov eax,ebx
-  call eaxout
-  call crlf
+  call eaxtty
+  crlf
 nomemout:
   cmp esi,edi
   jz endmemout
@@ -123,75 +127,12 @@ endmemout:
 
 printsignature:
   push eax
+  sCOM1
   mov eax,signature
-  call szout
-  call crlf
+  call sztty
+  crlf
+  eCOM1
   pop eax
-  ret
-
-szout:
-  push esi
-  push eax
-  mov esi,eax
-nextszout:
-  mov al,[esi]
-  cmp al,0x00
-  jz endszout
-  call comout
-  add esi,1
-  jmp nextszout
-endszout:
-  pop eax
-  pop esi
-  ret
-
-eaxout:
-  push ecx
-  mov ecx,32
-  push eax
-nexteaxout:
-  mov eax,[ss:esp]
-  jecxz endeaxout
-  sub ecx,4
-  shr eax,cl
-  call hex2asciiout
-  jmp nexteaxout
-endeaxout:
-  pop eax
-  pop ecx
-  ret
-
-hex2asciiout:
-  and al,0x0F
-  add al,0x90
-  daa
-  adc al,0x40
-  daa
-  call comout
-  ret
-
-crlf:
-  push eax
-  mov eax,0xd
-  call comout
-  mov eax,0xa
-  call comout
-  pop eax
-  ret
-
-space:
-  push eax
-  mov eax,' '
-  call comout
-  pop eax
-  ret
-
-comout:
-  ; ax has the byte to write
-  push edx
-  mov edx,COM1
-  out dx,ax
-  pop edx
   ret
 
 poweroff:

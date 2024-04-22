@@ -1,10 +1,6 @@
 org 0x00007c00
 jmp mbr
 
-%define TTY_VGA                0
-%define TTY_COM1               1
-%define COM1               0x3F8
-
 %define DELAYLEN      0xF7000000
 
 ;https://wiki.gentoo.org/wiki/BIOS
@@ -32,90 +28,11 @@ label_ebp: db 'ebp:',0
 label_esi: db 'esi:',0
 label_edi: db 'edi:',0
 
-%macro hex2ascii 1
-  and %1,0x0F
-  add %1,0x90
-  daa
-  adc %1,0x40
-  daa
-%endmacro
-
-%ifdef TTY_VGA
-  %macro altty 0
-    mov ah,0x0e
-    int 0x10
-  %endmacro
-  %macro space 0
-    mov eax,0x00000e20
-    int 0x10
-  %endmacro
-  %macro crlf 0
-    mov eax,0x00000e0d
-    int 0x10
-    mov eax,0x00000e0a
-    int 0x10
-  %endmacro
-%endif
-
-%ifdef TTY_COM1
-  %macro altty 0
-    out dx,al
-  %endmacro
-  %macro space 0
-    mov al,20
-    altty
-  %endmacro
-  %macro crlf 0
-    mov al,0x0D
-    altty
-    mov al,0x0A
-    altty
-  %endmacro
-%endif
-
-sztty:
-  pushad
-  mov esi,eax
-%ifdef TTY_COM1
-  mov edx,COM1
-%endif
-nextsztty:
-  mov eax,[esi]
-  altty
-  add esi,1
-  cmp al,0
-  jz endsztty
-  jmp nextsztty
-endsztty:
-  popad
-  ret
-
-eaxtty:
-%ifdef TTY_COM1
-  push edx
-  mov edx,COM1
-%endif
-  push ecx
-  push eax
-  mov ecx,32
-nexteaxtty:
-  mov eax,[esp]
-  jecxz endeaxtty
-  sub ecx,4
-  shr eax,cl
-  hex2ascii al
-  altty
-  jmp nexteaxtty
-endeaxtty:
-  pop eax
-  pop ecx
-%ifdef TTY_COM1
-  pop edx
-%endif
-  ret
+%include 'ttyout.asm'
 
 regsout:
   pushad
+  iCOM1
   mov eax,label_eax
   call sztty
   mov eax,[esp+28]
@@ -160,11 +77,10 @@ regsout:
   ret
 
 mbr:
+  call regsout
   mov eax,release
   call sztty
-%ifdef TTY_COM1
-  mov edx,COM1
-%endif
+  iCOM1
   crlf
   mov eax,0xfadecab1
   call eaxtty
