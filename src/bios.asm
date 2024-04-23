@@ -1,7 +1,7 @@
 %define BIOSSEGMENT   0xffff0000
 %define RELOCSEGMENT  0x000f0000
-
-%include 'ttyout.asm'
+org BIOSSEGMENT
+section .biosmain
 
 ; MEMORY LAYOUT
 ; 0xFFFFFFFF - 0xFFFF0000  this BIOS
@@ -18,10 +18,6 @@
 ; 0x000EFFFF - 0x00010000  free
 ; 0x0000FFFF - 0x00000000  first stack
 
-org BIOSSEGMENT
-
-section .biosmain
-
 signature: db 'shadow-bios',0x0
 label_eax: db 'eax:',0
 label_ebx: db 'ebx:',0
@@ -31,6 +27,8 @@ label_esp: db 'esp:',0
 label_ebp: db 'ebp:',0
 label_esi: db 'esi:',0
 label_edi: db 'edi:',0
+
+%include 'ttyout.asm'
 
 init:
   call printsignature

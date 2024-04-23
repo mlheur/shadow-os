@@ -1,5 +1,5 @@
-%define TTY_VGA               0
-;%define TTY_COM1               1
+;%define TTY_VGA               0
+%define TTY_COM1               1
 
 %ifndef COM1
   %define COM1 0x3F8
