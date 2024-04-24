@@ -3,6 +3,8 @@
 org BIOSSEGMENT
 section .biosmain
 
+%define DEBUG   1
+
 ; MEMORY LAYOUT
 ; 0xFFFFFFFF - 0xFFFF0000  this BIOS
 ; 0xFEFFFFFF - 0xFEEFF400  free
@@ -27,12 +29,21 @@ label_esp: db 'esp:',0
 label_ebp: db 'ebp:',0
 label_esi: db 'esi:',0
 label_edi: db 'edi:',0
+label_eip: db 'eip:',0
+label_cs: db '_cs:',0
+label_ss: db '_ss:',0
+label_ds: db '_ds:',0
+label_es: db '_es:',0
+label_fs: db '_fs:',0
+label_gs: db '_gs:',0
+label_cr0: db 'cr0:',0
 
 %include 'ttyout.asm'
 
 init:
   call printsignature
-  call printIVT
+  call regsout
+ ; call printIVT
   jmp poweroff
 
 testregs:
@@ -90,6 +101,57 @@ regsout:
   mov eax,[esp+0]
   call eaxtty
   crlf
+  ;
+  mov eax,label_eip
+  call sztty
+  ; https://stackoverflow.com/questions/4062403/how-to-check-the-eip-value-with-assembly-language
+  call $+4
+  pop eax
+  call eaxtty
+  space
+  ;
+  mov eax,label_cs
+  call sztty
+  mov eax,cs
+  call eaxtty
+  space
+  ;
+  mov eax,label_ss
+  call sztty
+  mov eax,ss
+  call eaxtty
+  space
+  ;
+  mov eax,label_ds
+  call sztty
+  mov eax,ds
+  call eaxtty
+  crlf
+  ;
+  mov eax,label_es
+  call sztty
+  mov eax,es
+  call eaxtty
+  space
+  ;
+  mov eax,label_fs
+  call sztty
+  mov eax,fs
+  call eaxtty
+  space
+  ;
+  mov eax,label_gs
+  call sztty
+  mov eax,gs
+  call eaxtty
+  space
+  ;
+  mov eax,label_cr0
+  call sztty
+  mov eax,cr0
+  call eaxtty
+  crlf
+  ;
   popad
   ret
 
@@ -107,9 +169,11 @@ memout:
 nextmemout:
   sub esi,4
   mov eax,esi
-;  mov ebx,[esi]
-;  cmp ebx,edi
-;  jz nomemout
+%ifndef DEBUG
+  mov ebx,[esi]
+  cmp ebx,edi
+  jz nomemout
+%endif
   call eaxtty
   space
   mov eax,ebx
