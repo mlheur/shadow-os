@@ -1,5 +1,7 @@
-%define BIOSSEGMENT   0xffff0000
-%define RELOCSEGMENT  0x000f0000
+%define BIOSSEGMENT    0xffff0000
+%define RELOCSEGMENT   0x000f0000
+%define IVT8086SEGMENT 0xFED00000
+%define IVT386SEGMENT  0xFEEFF000
 org BIOSSEGMENT
 section .biosmain
 
@@ -40,11 +42,6 @@ label_cr0: db 'cr0:',0
 
 %include 'ttyout.asm'
 
-init:
-  call printsignature
-  call regsout
- ; call printIVT
-  jmp poweroff
 
 testregs:
   pushad
@@ -197,6 +194,44 @@ printsignature:
   pop eax
   ret
 
+mergeIVTsegment:
+  pushad
+  mov eax,ds
+  push eax
+  mov eax,es
+  push eax
+nextmergeIVTsegment:
+  mov edx,[ebx+ecx]
+  and edx,[eax+ecx]
+  mov [ebx+ecx],edx
+  sub ecx,4
+  jecxz endmergeIVTsegment
+  jmp nextmergeIVTsegment
+endmergeIVTsegment:
+  pop eax
+  mov es,eax
+  pop eax
+  mov ds,eax
+  popad
+  ret
+
+moveIVT:
+  pushad
+  mov ebx,0
+  mov eax,IVT8086SEGMENT
+  mov esi,0x00000200
+  call mergeIVTsegment
+  mov eax,IVT386SEGMENT
+  mov ecx,0x00000400
+  call mergeIVTsegment
+  call printIVT
+  popad
+  ret
+
+init:
+  call printsignature
+  call regsout
+  call moveIVT
 poweroff:
   hlt
   times 0xfff0-($-$$) db 0
