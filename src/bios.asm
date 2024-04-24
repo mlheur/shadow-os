@@ -194,37 +194,32 @@ printsignature:
   pop eax
   ret
 
-mergeIVTsegment:
+moveIVT:
   pushad
   mov eax,ds
   push eax
-  mov eax,es
-  push eax
-nextmergeIVTsegment:
-  mov edx,[ebx+ecx]
-  and edx,[eax+ecx]
-  mov [ebx+ecx],edx
+  mov eax,0
+  mov ds,eax
+  iCOM1
+  mov esi,0
+  mov edi,0
+  add esi,IVT8086SEGMENT
+  mov ecx,0x200
+nextmoveIVT:
   sub ecx,4
-  jecxz endmergeIVTsegment
-  jmp nextmergeIVTsegment
-endmergeIVTsegment:
-  pop eax
-  mov es,eax
+  mov eax,[ds:esi+ecx]
+  ;call eaxtty
+  ;crlf
+  mov [ds:edi+ecx],eax
+  ;mov ebx,[ds:edi+ecx]
+  ;mov eax,ebx
+  ;call eaxtty
+  jecxz endmoveIVT
+  jmp nextmoveIVT
+endmoveIVT:
+  ;call printIVT
   pop eax
   mov ds,eax
-  popad
-  ret
-
-moveIVT:
-  pushad
-  mov ebx,0
-  mov eax,IVT8086SEGMENT
-  mov esi,0x00000200
-  call mergeIVTsegment
-  mov eax,IVT386SEGMENT
-  mov ecx,0x00000400
-  call mergeIVTsegment
-  call printIVT
   popad
   ret
 
