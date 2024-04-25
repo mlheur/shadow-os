@@ -57,47 +57,46 @@ testregs:
 
 regsout:
   pushad
-  iCOM1
   mov eax,label_eax
   call sztty
   mov eax,[esp+28]
   call eaxtty
-  space
+  call space
   mov eax,label_ebx
   call sztty
   mov eax,[esp+16]
   call eaxtty
-  space
+  call space
   mov eax,label_ecx
   call sztty
   mov eax,[esp+24]
   call eaxtty
-  space
+  call space
   mov eax,label_edx
   call sztty
   mov eax,[esp+20]
   call eaxtty
-  crlf
+  call crlf
   mov eax,label_esp
   call sztty
   mov eax,[esp+12]
   call eaxtty
-  space
+  call space
   mov eax,label_ebp
   call sztty
   mov eax,[esp+8]
   call eaxtty
-  space
+  call space
   mov eax,label_esi
   call sztty
   mov eax,[esp+4]
   call eaxtty
-  space
+  call space
   mov eax,label_edi
   call sztty
   mov eax,[esp+0]
   call eaxtty
-  crlf
+  call crlf
   ;
   mov eax,label_eip
   call sztty
@@ -105,79 +104,77 @@ regsout:
   call $+4
   pop eax
   call eaxtty
-  space
+  call space
   ;
   mov eax,label_cs
   call sztty
   mov eax,cs
   call eaxtty
-  space
+  call space
   ;
   mov eax,label_ss
   call sztty
   mov eax,ss
   call eaxtty
-  space
+  call space
   ;
   mov eax,label_ds
   call sztty
   mov eax,ds
   call eaxtty
-  crlf
+  call crlf
   ;
   mov eax,label_es
   call sztty
   mov eax,es
   call eaxtty
-  space
+  call space
   ;
   mov eax,label_fs
   call sztty
   mov eax,fs
   call eaxtty
-  space
+  call space
   ;
   mov eax,label_gs
   call sztty
   mov eax,gs
   call eaxtty
-  space
+  call space
   ;
   mov eax,label_cr0
   call sztty
   mov eax,cr0
   call eaxtty
-  crlf
+  call crlf
   ;
   popad
   ret
 
 printIVT:
   pushad
-  iCOM1
-  mov esi,0x00000400
-  mov edi,0
+  mov ecx,0x00000400
+  mov edx,0
   jmp nextmemout
 memout:
   pushad
-  iCOM1
-  mov esi,0
-  mov edi,0
+  mov edx,0
+  mov ecx,0
 nextmemout:
-  sub esi,4
-  mov eax,esi
+  sub ecx,4
+  mov eax,ecx
 %ifndef DEBUG
-  mov ebx,[esi]
-  cmp ebx,edi
+  mov ebx,[ecx]
+  cmp ebx,edx
   jz nomemout
 %endif
   call eaxtty
-  space
+  call space
   mov eax,ebx
   call eaxtty
-  crlf
+  call crlf
 nomemout:
-  cmp esi,edi
+  cmp edx,ecx
   jz endmemout
   jmp nextmemout
 endmemout:
@@ -186,47 +183,60 @@ endmemout:
 
 printsignature:
   push eax
-  sCOM1
   mov eax,signature
   call sztty
-  crlf
-  eCOM1
+  call crlf
   pop eax
+  ret
+
+memcpy:
+  push edx
+nextmemcpy:
+  sub ecx,4
+  mov edx,[eax+ecx]
+  mov [ebx+ecx],edx
+  call regsout
+  push eax
+  add eax,ecx
+  call eaxtty
+  call space
+  mov eax,ebx
+  add eax,ecx
+  call eaxtty
+  call space
+  mov eax,edx
+  call eaxtty
+  call space
+  ; read back the written cell
+  mov eax,ebx
+  add eax,ecx
+  call eaxtty
+  call space
+  mov eax,[ebx+ecx]
+  call eaxtty
+  call crlf
+  pop eax
+  jecxz endmemcpy
+  jmp nextmemcpy
+endmemcpy:
+  pop edx
   ret
 
 moveIVT:
   pushad
-  mov eax,ds
-  push eax
-  mov eax,0
-  mov ds,eax
-  iCOM1
-  mov esi,0
-  mov edi,0
-  add esi,IVT8086SEGMENT
-  mov ecx,0x200
-nextmoveIVT:
-  sub ecx,4
-  mov eax,[ds:esi+ecx]
-  ;call eaxtty
-  ;crlf
-  mov [ds:edi+ecx],eax
-  ;mov ebx,[ds:edi+ecx]
-  ;mov eax,ebx
-  ;call eaxtty
-  jecxz endmoveIVT
-  jmp nextmoveIVT
-endmoveIVT:
-  ;call printIVT
-  pop eax
-  mov ds,eax
+  mov eax,IVT8086SEGMENT
+  mov ebx,0x00000000
+  mov ecx,0x00000200
+  call memcpy
   popad
   ret
 
 init:
   call printsignature
   call regsout
+  call printIVT
   call moveIVT
+  call printIVT
 poweroff:
   hlt
   times 0xfff0-($-$$) db 0

@@ -13,55 +13,34 @@
   daa
 %endmacro
 
-%ifdef TTY_VGA
-  %macro altty 0
-    mov ah,0x0e
-    int 0x10
-  %endmacro
-  %macro space 0
-    mov eax,0x00000e20
-    int 0x10
-  %endmacro
-  %macro crlf 0
-    mov eax,0x00000e0d
-    int 0x10
-    mov eax,0x00000e0a
-    int 0x10
-  %endmacro
-%endif
-
+altty:
 %ifdef TTY_COM1
-  %macro altty 0
-    out dx,al
-  %endmacro
-  %macro space 0
-    mov al,0x20
-    altty
-  %endmacro
-  %macro crlf 0
-    mov al,0x0D
-    altty
-    mov al,0x0A
-    altty
-  %endmacro
+  push edx
+  mov edx,COM1
+  out dx,al
+  pop edx
 %endif
+%ifdef TTY_VGA
+  mov ah,0x0e
+  int 0x10
+%endif
+  ret
 
-%macro iCOM1 0
-  %ifdef TTY_COM1
-    mov edx,COM1
-  %endif
-%endmacro
-%macro sCOM1 0
-  %ifdef TTY_COM1
-    push edx
-    iCOM1
-  %endif
-%endmacro
-%macro eCOM1 0
-  %ifdef TTY_COM1
-    pop edx
-  %endif
-%endmacro
+space:
+  push eax
+  mov al,' '
+  call altty
+  pop eax
+  ret
+
+crlf:
+  push eax
+  mov al,0x0D
+  call altty
+  mov al,0x0A
+  call altty
+  pop eax
+  ret
 
 eaxtty:
 %ifdef TTY_COM1
@@ -77,7 +56,7 @@ nexteaxtty:
   sub ecx,4
   shr eax,cl
   hex2ascii al
-  altty
+  call altty
   jmp nexteaxtty
 endeaxtty:
   pop eax
@@ -95,7 +74,7 @@ sztty:
 %endif
 nextsztty:
   mov eax,[esi]
-  altty
+  call altty
   add esi,1
   cmp al,0
   jz endsztty

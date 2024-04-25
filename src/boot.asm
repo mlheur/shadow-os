@@ -1,7 +1,7 @@
 org 0x00007c00
 jmp mbr
 
-%define DELAYLEN      0xF7000000
+%define DELAYLEN      0xFC000000
 
 ;https://wiki.gentoo.org/wiki/BIOS
 ;BIOS Memory Map
@@ -32,47 +32,46 @@ label_edi: db 'edi:',0
 
 regsout:
   pushad
-  iCOM1
   mov eax,label_eax
   call sztty
   mov eax,[esp+28]
   call eaxtty
-  space
+  call space
   mov eax,label_ebx
   call sztty
   mov eax,[esp+16]
   call eaxtty
-  space
+  call space
   mov eax,label_ecx
   call sztty
   mov eax,[esp+24]
   call eaxtty
-  space
+  call space
   mov eax,label_edx
   call sztty
   mov eax,[esp+20]
   call eaxtty
-  crlf
+  call crlf
   mov eax,label_esp
   call sztty
   mov eax,[esp+12]
   call eaxtty
-  space
+  call space
   mov eax,label_ebp
   call sztty
   mov eax,[esp+8]
   call eaxtty
-  space
+  call space
   mov eax,label_esi
   call sztty
   mov eax,[esp+4]
   call eaxtty
-  space
+  call space
   mov eax,label_edi
   call sztty
   mov eax,[esp+0]
   call eaxtty
-  crlf
+  call crlf
   popad
   ret
 
@@ -80,11 +79,10 @@ mbr:
   call regsout
   mov eax,release
   call sztty
-  iCOM1
-  crlf
+  call crlf
   mov eax,0xfadecab1
   call eaxtty
-  crlf
+  call crlf
   mov ecx,DELAYLEN
 delay:
   add ecx,1
