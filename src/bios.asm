@@ -42,6 +42,7 @@ label_cr0: db 'cr0:',0
 
 %include 'ttyout.asm'
 
+%define DEBUG 1
 
 testregs:
   pushad
@@ -153,7 +154,7 @@ regsout:
 
 printIVT:
   pushad
-  mov ecx,0x00000400
+  mov ecx,0x0000400
   mov edx,0
   jmp nextmemout
 memout:
@@ -163,14 +164,14 @@ memout:
 nextmemout:
   sub ecx,4
   mov eax,ecx
-%ifndef DEBUG
+%ifdef DEBUG
   mov ebx,[ecx]
-  cmp ebx,edx
+  cmp ebx,0
   jz nomemout
 %endif
   call eaxtty
   call space
-  mov eax,ebx
+  mov eax,[ecx]
   call eaxtty
   call crlf
 nomemout:
@@ -193,48 +194,80 @@ memcpy:
   push edx
 nextmemcpy:
   sub ecx,4
-  mov edx,[eax+ecx]
-  mov [ebx+ecx],edx
-  call regsout
+  mov edx,eax
+  add edx,ecx
+  mov edi,[edx]
+  mov edx,ebx
+  add edx,ecx
+  mov [edx],edi
+%ifndef DEBUG
+  ; read back what's written
   push eax
-  add eax,ecx
-  call eaxtty
-  call space
-  mov eax,ebx
-  add eax,ecx
-  call eaxtty
-  call space
   mov eax,edx
   call eaxtty
   call space
-  ; read back the written cell
-  mov eax,ebx
-  add eax,ecx
-  call eaxtty
-  call space
-  mov eax,[ebx+ecx]
+  mov eax,[edx]
   call eaxtty
   call crlf
   pop eax
+%endif
   jecxz endmemcpy
   jmp nextmemcpy
 endmemcpy:
   pop edx
   ret
 
+memmerge:
+  pushad
+nextmemmerge:
+  sub ecx,4
+  ; read target word
+  mov edx,ebx
+  add edx,ecx
+  mov edi,[edx]
+  ; skip if non-zero
+  cmp edi,0
+  jnz nextmemmerge
+  ; read source word
+  mov edx,eax
+  add edx,ecx
+  mov edi,[edx]
+  ; write target word
+  mov edx,ebx
+  add edx,ecx
+  mov [edx],edi
+%ifndef DEBUG
+  ; read back what's written
+  push eax
+  mov eax,edx
+  call eaxtty
+  call space
+  mov eax,[edx]
+  call eaxtty
+  call crlf
+  pop eax
+%endif
+  jecxz endmemmerge
+  jmp nextmemmerge
+endmemmerge:
+  popad
+  ret
+
 moveIVT:
   pushad
+  mov eax,IVT386SEGMENT
+  mov ebx,0x00000000
+  mov ecx,0x0400
+  call memmerge
   mov eax,IVT8086SEGMENT
   mov ebx,0x00000000
-  mov ecx,0x00000200
-  call memcpy
+  mov ecx,0x0200
+  call memmerge
   popad
   ret
 
 init:
   call printsignature
-  call regsout
-  call printIVT
   call moveIVT
   call printIVT
 poweroff:
