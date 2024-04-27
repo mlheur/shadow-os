@@ -35,12 +35,12 @@ space:
 
 crlf:
   push eax
-  mov al,0x0D
-  call altty
-  mov al,0x0A
-  call altty
+  mov eax,_crlf
+  call sztty
   pop eax
   ret
+_crlf:
+  db 0x0d,0x0a,0
 
 eaxtty:
 %ifdef TTY_COM1
