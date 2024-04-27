@@ -16,7 +16,9 @@ section .biosmain
 ; 0xFEExxFFF - 0xFEExx400  repeats in every segment
 ; 0xFEExx3FF - 0xFEExx000  repeats in every segment
 ; 0xFEDFFFFF - 0xFED00150  free 8086 compat
-; 0xFED0014F - 0xFED00000  8086 compat IVT
+; https://revers.engineering/evading-trivial-acpi-checks/
+; 0xFED00000 - ACPI hwid, 8086A201
+; 0xFED0014F - 0xFED00000  8086 compat IVT ??? 
 ; 0xFECFFFFF - 0x00100000  free
 ; 0x000FFFFF - 0x000F0000  relocated BIOS
 ; 0x000EFFFF - 0x00010000  free
@@ -164,11 +166,11 @@ memout:
 nextmemout:
   sub ecx,4
   mov eax,ecx
-%ifdef DEBUG
-  mov ebx,[ecx]
-  cmp ebx,0
-  jz nomemout
-%endif
+;%ifdef DEBUG
+;  mov ebx,[ecx]
+;  cmp ebx,0
+;  jz nomemout
+;%endif
   call eaxtty
   call space
   mov eax,[ecx]
@@ -200,7 +202,7 @@ nextmemcpy:
   mov edx,ebx
   add edx,ecx
   mov [edx],edi
-%ifndef DEBUG
+%ifdef DEBUG
   ; read back what's written
   push eax
   mov eax,edx
@@ -253,23 +255,8 @@ endmemmerge:
   popad
   ret
 
-moveIVT:
-  pushad
-  mov eax,IVT386SEGMENT
-  mov ebx,0x00000000
-  mov ecx,0x0400
-  call memmerge
-  mov eax,IVT8086SEGMENT
-  mov ebx,0x00000000
-  mov ecx,0x0200
-  call memmerge
-  popad
-  ret
-
 init:
   call printsignature
-  call moveIVT
-  call printIVT
 poweroff:
   hlt
   times 0xfff0-($-$$) db 0
