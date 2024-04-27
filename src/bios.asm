@@ -1,7 +1,11 @@
-%define BIOSSEGMENT    0xffff0000
-%define RELOCSEGMENT   0x000f0000
+%define BIOSSEGMENT_raw        0xffff0000
+%define BIOSSEGMENT_sel        0x0fff
+%define BIOSSEGMENT_off        0x000f0000
+%define RELOCSEGMENT_raw       0x000f0000
+%define RELOCSEGMENT_sel       0x0000
+%define RELOCSEGMENT_off       0x000f0000
 
-org BIOSSEGMENT
+org BIOSSEGMENT_raw
 section .biosmain
 
 %define DEBUG   1
@@ -25,7 +29,7 @@ section .biosmain
 signature: db 'shadow-bios',0x0
 
 %include 'ttyout.asm'
-%include 'register.asm'
+%include 'registers.asm'
 
 %define DEBUG 1
 
@@ -39,12 +43,13 @@ printsignature:
 
 init:
   call printsignature
+  call testregs
 poweroff:
   hlt
   times 0xfff0-($-$$) db 0
 
 section .rvec
 rvec:
-  jmp word BIOSSEGMENT+init
+  jmp word BIOSSEGMENT_raw+init
   times 0x10-1-(($-$$)) hlt ; byte padding
   db 0x00
