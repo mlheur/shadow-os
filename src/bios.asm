@@ -5,6 +5,8 @@
 %define RELOCSEGMENT_sel       0x0000
 %define RELOCSEGMENT_off       0x000f0000
 
+CPU  386
+BITS  16
 org BIOSSEGMENT_raw
 section .biosmain
 
@@ -42,6 +44,8 @@ printsignature:
   ret
 
 init:
+  cli
+  cld
   call printsignature
   call testregs
 poweroff:

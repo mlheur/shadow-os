@@ -21,6 +21,9 @@ label_es: db '_es:',0
 label_fs: db '_fs:',0
 label_gs: db '_gs:',0
 label_cr0: db 'cr0:',0
+label_cr1: db 'cr1:',0
+label_cr2: db 'cr2:',0
+label_cr3: db 'cr3:',0
 
 testregs:
   pushad

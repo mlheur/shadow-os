@@ -1,7 +1,7 @@
 memcpy:
   push edx
   push ecx
-nextmemcpy:
+.next:
   sub ecx,4
   mov edx,eax
   add edx,ecx
@@ -20,9 +20,9 @@ nextmemcpy:
   call crlf
   pop eax
 %endif
-  jecxz endmemcpy
-  jmp nextmemcpy
-endmemcpy:
+  jecxz .end
+  jmp .next
+.end:
   pop ecx
   pop edx
   ret
