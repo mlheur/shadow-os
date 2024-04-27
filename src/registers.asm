@@ -1,3 +1,10 @@
+%define PAT1    0xfedcba09
+%define PAT2    0x90abcdef
+%define PAT3    0x87654321
+%define PAT4    0x12345678
+%define PAT5    0xffeeddcc
+%define PAT6    0xbbaa0099
+
 label_eax: db 'eax:',0
 label_ebx: db 'ebx:',0
 label_ecx: db 'ecx:',0
@@ -17,12 +24,12 @@ label_cr0: db 'cr0:',0
 
 testregs:
   pushad
-  mov eax,0xfedcba09
-  mov ebx,0x90abcdef
-  mov ecx,0x87654321
-  mov edx,0x12345678
-  mov esi,0xffeeddcc
-  mov edi,0xbbaa0099
+  mov eax,PAT1
+  mov ebx,PAT2
+  mov ecx,PAT3
+  mov edx,PAT4
+  mov esi,PAT5
+  mov edi,PAT6
   call regsout
   popad
   ret
