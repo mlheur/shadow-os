@@ -1,0 +1,66 @@
+printIVT:
+  pushad
+  mov ecx,0x0000400
+  mov edx,0
+  jmp nextmemout
+memout:
+  pushad
+  mov edx,0
+  mov ecx,0
+nextmemout:
+  sub ecx,4
+  mov eax,ecx
+;%ifdef DEBUG
+;  mov ebx,[ecx]
+;  cmp ebx,0
+;  jz nomemout
+;%endif
+  call eaxtty
+  call space
+  mov eax,[ecx]
+  call eaxtty
+  call crlf
+nomemout:
+  cmp edx,ecx
+  jz endmemout
+  jmp nextmemout
+endmemout:
+  popad
+  ret
+
+memmerge:
+  pushad
+nextmemmerge:
+  sub ecx,4
+  ; read target word
+  mov edx,ebx
+  add edx,ecx
+  mov edi,[edx]
+  ; skip if non-zero
+  cmp edi,0
+  jnz nextmemmerge
+  ; read source word
+  mov edx,eax
+  add edx,ecx
+  mov edi,[edx]
+  ; write target word
+  mov edx,ebx
+  add edx,ecx
+  mov [edx],edi
+%ifndef DEBUG
+  ; read back what's written
+  push eax
+  mov eax,edx
+  call eaxtty
+  call space
+  mov eax,[edx]
+  call eaxtty
+  call crlf
+  pop eax
+%endif
+  jecxz endmemmerge
+  jmp nextmemmerge
+endmemmerge:
+  popad
+  ret
+

@@ -1,7 +1,6 @@
 %define BIOSSEGMENT    0xffff0000
 %define RELOCSEGMENT   0x000f0000
-%define IVT8086SEGMENT 0xFED00000
-%define IVT386SEGMENT  0xFEEFF000
+
 org BIOSSEGMENT
 section .biosmain
 
@@ -15,174 +14,20 @@ section .biosmain
 ; 0xFEEFE3FF - 0xFEEFF000  more of the same?
 ; 0xFEExxFFF - 0xFEExx400  repeats in every segment
 ; 0xFEExx3FF - 0xFEExx000  repeats in every segment
-; 0xFEDFFFFF - 0xFED00150  free 8086 compat
+; 0xFEDFFFFF - 0xFED00150  free
 ; https://revers.engineering/evading-trivial-acpi-checks/
 ; 0xFED00000 - ACPI hwid, 8086A201
-; 0xFED0014F - 0xFED00000  8086 compat IVT ??? 
 ; 0xFECFFFFF - 0x00100000  free
 ; 0x000FFFFF - 0x000F0000  relocated BIOS
 ; 0x000EFFFF - 0x00010000  free
 ; 0x0000FFFF - 0x00000000  first stack
 
 signature: db 'shadow-bios',0x0
-label_eax: db 'eax:',0
-label_ebx: db 'ebx:',0
-label_ecx: db 'ecx:',0
-label_edx: db 'edx:',0
-label_esp: db 'esp:',0
-label_ebp: db 'ebp:',0
-label_esi: db 'esi:',0
-label_edi: db 'edi:',0
-label_eip: db 'eip:',0
-label_cs: db '_cs:',0
-label_ss: db '_ss:',0
-label_ds: db '_ds:',0
-label_es: db '_es:',0
-label_fs: db '_fs:',0
-label_gs: db '_gs:',0
-label_cr0: db 'cr0:',0
 
 %include 'ttyout.asm'
+%include 'register.asm'
 
 %define DEBUG 1
-
-testregs:
-  pushad
-  mov eax,0xfedcba09
-  mov ebx,0x90abcdef
-  mov ecx,0x87654321
-  mov edx,0x12345678
-  mov esi,0xffeeddcc
-  mov edi,0xbbaa0099
-  call regsout
-  popad
-  ret
-
-regsout:
-  pushad
-  mov eax,label_eax
-  call sztty
-  mov eax,[esp+28]
-  call eaxtty
-  call space
-  mov eax,label_ebx
-  call sztty
-  mov eax,[esp+16]
-  call eaxtty
-  call space
-  mov eax,label_ecx
-  call sztty
-  mov eax,[esp+24]
-  call eaxtty
-  call space
-  mov eax,label_edx
-  call sztty
-  mov eax,[esp+20]
-  call eaxtty
-  call crlf
-  mov eax,label_esp
-  call sztty
-  mov eax,[esp+12]
-  call eaxtty
-  call space
-  mov eax,label_ebp
-  call sztty
-  mov eax,[esp+8]
-  call eaxtty
-  call space
-  mov eax,label_esi
-  call sztty
-  mov eax,[esp+4]
-  call eaxtty
-  call space
-  mov eax,label_edi
-  call sztty
-  mov eax,[esp+0]
-  call eaxtty
-  call crlf
-  ;
-  mov eax,label_eip
-  call sztty
-  ; https://stackoverflow.com/questions/4062403/how-to-check-the-eip-value-with-assembly-language
-  call $+4
-  pop eax
-  call eaxtty
-  call space
-  ;
-  mov eax,label_cs
-  call sztty
-  mov eax,cs
-  call eaxtty
-  call space
-  ;
-  mov eax,label_ss
-  call sztty
-  mov eax,ss
-  call eaxtty
-  call space
-  ;
-  mov eax,label_ds
-  call sztty
-  mov eax,ds
-  call eaxtty
-  call crlf
-  ;
-  mov eax,label_es
-  call sztty
-  mov eax,es
-  call eaxtty
-  call space
-  ;
-  mov eax,label_fs
-  call sztty
-  mov eax,fs
-  call eaxtty
-  call space
-  ;
-  mov eax,label_gs
-  call sztty
-  mov eax,gs
-  call eaxtty
-  call space
-  ;
-  mov eax,label_cr0
-  call sztty
-  mov eax,cr0
-  call eaxtty
-  call crlf
-  ;
-  popad
-  ret
-
-printIVT:
-  pushad
-  mov ecx,0x0000400
-  mov edx,0
-  jmp nextmemout
-memout:
-  pushad
-  mov edx,0
-  mov ecx,0
-nextmemout:
-  sub ecx,4
-  mov eax,ecx
-;%ifdef DEBUG
-;  mov ebx,[ecx]
-;  cmp ebx,0
-;  jz nomemout
-;%endif
-  call eaxtty
-  call space
-  mov eax,[ecx]
-  call eaxtty
-  call crlf
-nomemout:
-  cmp edx,ecx
-  jz endmemout
-  jmp nextmemout
-endmemout:
-  popad
-  ret
 
 printsignature:
   push eax
@@ -190,69 +35,6 @@ printsignature:
   call sztty
   call crlf
   pop eax
-  ret
-
-memcpy:
-  push edx
-nextmemcpy:
-  sub ecx,4
-  mov edx,eax
-  add edx,ecx
-  mov edi,[edx]
-  mov edx,ebx
-  add edx,ecx
-  mov [edx],edi
-%ifdef DEBUG
-  ; read back what's written
-  push eax
-  mov eax,edx
-  call eaxtty
-  call space
-  mov eax,[edx]
-  call eaxtty
-  call crlf
-  pop eax
-%endif
-  jecxz endmemcpy
-  jmp nextmemcpy
-endmemcpy:
-  pop edx
-  ret
-
-memmerge:
-  pushad
-nextmemmerge:
-  sub ecx,4
-  ; read target word
-  mov edx,ebx
-  add edx,ecx
-  mov edi,[edx]
-  ; skip if non-zero
-  cmp edi,0
-  jnz nextmemmerge
-  ; read source word
-  mov edx,eax
-  add edx,ecx
-  mov edi,[edx]
-  ; write target word
-  mov edx,ebx
-  add edx,ecx
-  mov [edx],edi
-%ifndef DEBUG
-  ; read back what's written
-  push eax
-  mov eax,edx
-  call eaxtty
-  call space
-  mov eax,[edx]
-  call eaxtty
-  call crlf
-  pop eax
-%endif
-  jecxz endmemmerge
-  jmp nextmemmerge
-endmemmerge:
-  popad
   ret
 
 init:
