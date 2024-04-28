@@ -1,4 +1,6 @@
 ASM	= nasm
+QEMUDBG = -d cpu -D qemu-debug.log
+#QEMUDBG = ""
 SDIR	= src
 BDIR	= build
 RDIR	= release
@@ -11,10 +13,10 @@ MKDIR   = $(shell test -d $@ || mkdir -p $@)
 .PHONY: bios clean subdirs
 
 boot : $(RDIR)/boot.rom $(DEPS)
-	qemu-system-i386 -serial stdio -drive file=$<,index=0,if=floppy,format=raw
+	qemu-system-i386 $(QEMUDBG) -serial stdio -drive file=$<,index=0,if=floppy,format=raw
 
 bios : $(RDIR)/bios.rom $(DEPS)
-	qemu-system-i386 -serial stdio -bios $<
+	qemu-system-i386 $(QEMUDBG) -serial stdio -bios $<
 clean :
 	rm -fr $(SUBDIRS)
 

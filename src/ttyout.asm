@@ -71,7 +71,7 @@ sztty:
 nextsztty:
   mov eax,[esi]
   call altty
-  add esi,1
+  inc esi
   cmp al,0
   jz endsztty
   jmp nextsztty

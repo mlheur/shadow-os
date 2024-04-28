@@ -7,10 +7,20 @@
 
 CPU  386
 BITS  16
+ALIGN 16
 org BIOSSEGMENT_raw
 section .biosmain
 
-%define DEBUG   1
+; int 0 handler, poweroff.
+handle_int0:
+  mov eax,0xdeadface
+  mov ebx,eax
+  mov ecx,eax
+  mov edx,eax
+  mov esi,eax
+  mov edi,eax
+  call regsout
+  jmp poweroff
 
 ; MEMORY LAYOUT
 ; 0xFFFFFFFF - 0xFFFF0000  this BIOS
@@ -33,7 +43,13 @@ signature: db 'shadow-bios',0x0
 %include 'ttyout.asm'
 %include 'registers.asm'
 
-%define DEBUG 1
+decodeEDX:
+  push eax
+  mov eax,edx
+  call eaxtty
+  call crlf
+  pop eax
+  jmp word eax
 
 printsignature:
   push eax
@@ -43,9 +59,11 @@ printsignature:
   pop eax
   ret
 
+foo: dd $
 init:
-  cli
-  cld
+  call regsout
+  mov eax,($$+$+8) ; set the return address to be just _after_ the jmp to decodeEDX
+  jmp decodeEDX
   call printsignature
   call testregs
 poweroff:
@@ -54,6 +72,6 @@ poweroff:
 
 section .rvec
 rvec:
-  jmp word BIOSSEGMENT_raw+init
+  jmp word init
   times 0x10-1-(($-$$)) hlt ; byte padding
   db 0x00

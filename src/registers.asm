@@ -20,6 +20,7 @@ label_ds: db '_ds:',0
 label_es: db '_es:',0
 label_fs: db '_fs:',0
 label_gs: db '_gs:',0
+label_efl: db 'efl:',0
 label_cr0: db 'cr0:',0
 label_cr1: db 'cr1:',0
 label_cr2: db 'cr2:',0
@@ -129,10 +130,11 @@ regsout:
   mov eax,cr0
   call eaxtty
   call crlf
-  ;
-  mov eax,label_cr1
+  ; Reading CR1 causes INT 0x00 that hasn't been set up yet.
+  mov eax,label_efl
   call sztty
-  mov eax,cr1
+  pushfd
+  pop eax
   call eaxtty
   call space
   ;
