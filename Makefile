@@ -3,7 +3,7 @@ SDIR	= src
 BDIR	= build
 RDIR	= release
 SUBDIRS	= $(BDIR) $(RDIR)
-DEPS	= Makefile src/ttyout.asm
+DEPS	= Makefile src/ttyout.asm src/registers.asm
 
 THIS 	= $(shell basename $@ .rom)
 MKDIR   = $(shell test -d $@ || mkdir -p $@)

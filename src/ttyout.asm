@@ -5,14 +5,6 @@
   %define COM1 0x3F8
 %endif
 
-%macro hex2ascii 1
-  and %1,0x0F
-  add %1,0x90
-  daa
-  adc %1,0x40
-  daa
-%endmacro
-
 altty:
 %ifdef TTY_COM1
   push edx
@@ -55,7 +47,11 @@ nexteaxtty:
   jecxz endeaxtty
   sub ecx,4
   shr eax,cl
-  hex2ascii al
+  and al,0x0F
+  add al,0x90
+  daa
+  adc al,0x40
+  daa
   call altty
   jmp nexteaxtty
 endeaxtty:

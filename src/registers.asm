@@ -130,5 +130,23 @@ regsout:
   call eaxtty
   call crlf
   ;
+  mov eax,label_cr1
+  call sztty
+  mov eax,cr1
+  call eaxtty
+  call space
+  ;
+  mov eax,label_cr2
+  call sztty
+  mov eax,cr2
+  call eaxtty
+  call space
+  ;
+  mov eax,label_cr3
+  call sztty
+  mov eax,cr3
+  call eaxtty
+  call crlf
+  ;
   popad
   ret
