@@ -10,8 +10,7 @@ BITS  16
 ALIGN 16
 org BIOSSEGMENT_raw
 section .biosmain
-
-; int 0 handler, poweroff.
+; ROM address 0x0000 is the first error handler (? because [cs:0x0000])
 handle_int0:
   mov eax,0xdeadface
   mov ebx,eax
@@ -43,14 +42,6 @@ signature: db 'shadow-bios',0x0
 %include 'ttyout.asm'
 %include 'registers.asm'
 
-decodeEDX:
-  push eax
-  mov eax,edx
-  call eaxtty
-  call crlf
-  pop eax
-  jmp word eax
-
 printsignature:
   push eax
   mov eax,signature
@@ -59,11 +50,14 @@ printsignature:
   pop eax
   ret
 
-foo: dd $
 init:
-  call regsout
-  mov eax,($$+$+8) ; set the return address to be just _after_ the jmp to decodeEDX
-  jmp decodeEDX
+  ; Decode EDX
+  push eax
+  mov eax,edx
+  call eaxtty
+  call crlf
+  pop eax
+  ; End decode EDX
   call printsignature
   call testregs
 poweroff:
