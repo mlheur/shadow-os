@@ -1,2 +1,2 @@
 # shadow-os
-I'm trying to make a kind of OS and naming it after my dog's nickname.
+For personal edification, writing an x86 system from MBR up to something with functional user interaction.
