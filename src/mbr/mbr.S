@@ -27,6 +27,22 @@
 #define COM1 0x00
 #define VDEO 0x01
 
+#ifdef COM1
+#define COM1_OUT \
+    pushw %dx; movb $0x01,%ah; movb $COM1,%dl; int $0x14; popw %dx
+#else
+#define COM1_OUT
+#endif /* COM1 */
+
+#ifdef VDEO
+#define VDEO_OUT \
+    pushw %bx; movb $0x0e,%ah; movw $VDEO,%bx; int $0x10; popw %bx
+#else
+#define VDEO_OUT
+#endif /* VDEO */
+
+#define CHAROUT     COM1_OUT; VDEO_OUT
+
 #define prints(s)   pushw %si; movw $(s), %si; call strout; popw %si
 
 	.text
@@ -73,61 +89,64 @@ _init_COM1:
  * shadow-os will do something completely different, there's no attempt at
  * portability since this is an educational OS built to run in 486 VM.
  * Strategy:
- * - copy the whole boot device to RAM 0040:0000
- * - blind jump to 0040:0200
+ * - copy the whole boot device to RAM 0050:0000
+ * - blind jump to 0050:0200, the kernel starts on the bootdev block.
  * Assumptions:
  * - boot device size will be limited to 64KiB (Thanks Bill!)
- * - LBA addressing is avaialble
+ * - LBA fails, AH=1: invalid function; use CHS
  * - I don't know how end of device will be signaled, read error? */
 load_all:
-	/*
-	 * BIOS call "INT 0x13 Extensions Extended Read"
-	 *	Call with	%ah = 0x42
-	 *			%dl = drive (0x80 for 1st hd, 0x81 for 2nd, etc)
-	 *			%ds:%si = segment:offset of command packet
-	 *	Return:
-	 *			carry set: failure
-	 *				%ah = error code (0x01, invalid func)
-	 *				command packet's sector count field set
-	 *				to the number of sectors successfully
-	 *				transferred
-	 *			carry clear: success
-	 *				%ah = 0 (success)
-	 *	Command Packet:
-	 *			0x0000	BYTE	packet size (0x10 or 0x18)
-	 *			0x0001	BYTE	reserved (should be 0)
-	 *			0x0002	WORD	sectors to transfer (max 127)
-	 *			0x0004	DWORD	seg:offset of transfer buffer
-	 *			0x0008	QWORD	starting sector number
-	 */
-	movb	$0x42,              %ah
-    movb    bootdev,            %dl
-	movw	lba_cmd_packet,     %si
-	int     $0x13
-    jnc     lba_read_success
-lba_read_failed:
-    pushw   %ax                 /* save ah, it has return code */
-    prints(msg_readfailed)
-lba_read_failed1:
-    popw    %ax                 /* restore ah */
-    shrw    $8,%ax              /* print ah, the return code */
-    call    byte_to_ascii_out
-    prints(msg_sectorcount)
-    movw    lba_cmd_sector_count,   %ax
-    call    word_to_ascii_out
-    prints(msg_sectorstart)
-    movw    lba_cmd_sector_start,   %ax
-    call    word_to_ascii_out
-    prints(crlf)
-    jmp     halt
-lba_false_read_success:
+/* CHS Read: https://fd.lod.bz/rbil/interrup/bios/1302.html#642
+INT 13 - DISK - READ SECTOR(S) INTO MEMORY     
+	AH = 02h
+	AL = number of sectors to read (must be nonzero)
+	CH = low eight bits of cylinder number
+	CL = sector number 1-63 (bits 0-5)
+	     high two bits of cylinder (bits 6-7, hard disk only)
+	DH = head number
+	DL = drive number (bit 7 set for hard disk)
+	ES:BX -> data buffer
+Return: CF set on error
+	    if AH = 11h (corrected ECC error), AL = burst length
+	CF clear if successful
+	AH = status (see #00234)
+	AL = number of sectors transferred (only valid if CF set for some BIOSes)
+*/
+
+chs_read_80:
+    /**** SAVE STATE ****/
     pushw   %ax
-    prints(msg_falsreadfailed)
-    jmp     lba_read_failed1
-lba_read_success:
-    prints(msg_readsuccess)
-    testb   %ah,%ah
-    jnz     lba_false_read_success
+    pushw   %bx
+    pushw   %cx
+    pushw   %dx
+    /*** PREP THE THING ****/
+    movw    KRN_SEGM,   %ax /* for setting es */
+    movw    %ax,        %es /* segment 0050:0000 */
+    movb    $0x00,      %dh /* head zero */
+    movb    bootdev,    %dl /* whatever device we booted from */
+    movb    $0x00,      %ch /* Read starting on cylinder zero */
+    movb    $0x00,      %cl /* sector 0, still cylinder zero */
+    movw    $0x0000,    %bx /* offset 0050:0000 */
+    movb    $0x02,      %ah /* CHS Read function */
+    movb    $0x80,      %al /* Read 0x80 bytes at a time */
+    /*** DO THE THING ***/
+    int     $0x13
+    jc      chs_read_failed
+    /* Give some feedback out the console */
+    movb    dot,        %al
+    call    charout
+chs_read_end:
+    /**** LOAD STATE ****/
+    popw    %ax
+    popw    %bx
+    popw    %cx
+    popw    %dx
+    ret
+chs_read_failed:
+    prints(msg_chs_failed)
+    call    word_to_ascii_out
+    jmp     chs_read_end
+
 /*******************************************************************************
  * End MBR program */
     prints(msg_halting)
@@ -140,24 +159,27 @@ halt:
 
 /*******************************************************************************
  * Function: word_to_ascii_out
- * Purpose: convert int to ascii before falling through to charout */
+ * Purpose: convert two-byte into to ascii, then send it out */
 word_to_ascii_out:
-    pushw   %ax
-    shrw    $8,%ax              /* hight byte */
+    pushw   %dx
+    movw    %ax,        %dx
+    shrw    $8,         %ax     /* hight byte */
     call    byte_to_ascii_out
-    popw    %ax                 /* low byte */
+    movw    %dx,        %ax     /* low byte */
     call    byte_to_ascii_out
+    movw    %dx,        %ax     /* restore */
+    popw    %dx                 /* restore */
     ret
 /*******************************************************************************
  * Function: byte_to_ascii_out */
 byte_to_ascii_out:
     pushw   %ax
     shr     $4,         %al     /* handle high nibble */
-    call    nibble_ascii_out
+    call    nibble_to_ascii_out
     popw    %ax                 /* handle low nibble */
-    call    nibble_ascii_out
+    call    nibble_to_ascii_out
     ret
-nibble_ascii_out:
+nibble_to_ascii_out:
     andw    $0xF,       %ax     /* filter the nibble */
     addb    $0x90,      %al     /* setup for decmial arithmatic, int2hex */
     daa                         /* crank 1, int2hex */
@@ -173,24 +195,7 @@ nibble_ascii_out:
  * Purpose: write a character to serial and/or video consoles
  * Inputs: al: the 8-bit ascii character to write
  * Outputs: None */
-charout:
-    pushw   %ax
-#ifdef COM1
-    pushw   %dx             /* save state of dx */
-    movb    $0x01,  %ah     /* for int14h */
-    movb    $COM1,  %dl     /* for int14h */
-    int     $0x14
-    popw    %dx             /* restore state of DX */
-#endif /* COM1 */
-#ifdef VDEO
-    pushw   %bx
-    movb    $0x0e,  %ah
-    movw    $VDEO,  %bx
-    int     $0x10
-    popw    %bx
-#endif /* VDEO */
-    popw    %ax
-    ret
+charout: CHAROUT; ret
 /******************************************************************************/
 
 
@@ -203,7 +208,7 @@ strout:
     pushw   %ax             /* save state */
     jmp     strout_2
 strout_1:
-    call    charout         /* print the character */
+    call    charout
 strout_2:
     lodsb                   /* copy the character to al, increment si */
     testb   %al,    %al     /* test if it is the null terminator */
@@ -216,16 +221,8 @@ strout_fin:
 
 msg_halting:
     .asciz  "halting"
-msg_readfailed:
-    .asciz  "lba read failed: ah="
-msg_falsreadfailed:
-    .asciz  "lba false read: ah="
-msg_readsuccess:
-    .asciz  "lba read success"
-msg_sectorcount:
-    .asciz  " sector count="
-msg_sectorstart:
-    .asciz  " sector start="
+msg_chs_failed:
+    .asciz  "chs read failed: ax="
 osname:
     .ascii  "\r\nshadow-os"
 crlf:
@@ -237,18 +234,6 @@ dot:
 bootdev:
     .byte   0xA5
 
-
-lba_cmd_packet:
-	.byte 0x10          /* 0x0000 BYTE  packet size (0x10 or 0x18) */
-	.byte 0x00          /* 0x0001 BYTE  reserved (should be 0) */
-lba_cmd_sector_count:
-	.word 1             /* 0x0002 WORD  sectors to transfer (max 127) */
-    .word KRN_SEGM      /* 0x0004 WORD  seg: of transfer buffer */
-	.word 0x0000        /* 0x0006 WORD  :offset of transfer buffer */
-lba_cmd_sector_start:
-    .long 0x00000000    /* 0x0008 QWORD starting sector number */
-end_of_code:
-    nop
 
 
 /*******************************************************************************
