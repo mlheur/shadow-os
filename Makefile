@@ -12,4 +12,5 @@ clean :
 
 install : bin/mbr
 	sudo dd if=bin/mbr of=/var/lib/libvirt/images/FourEightySix.img bs=512 count=1
+	sudo dd if=/dev/zero of=/var/lib/libvirt/images/FourEightySix.img bs=512 seek=1 count=127
 	sudo hexdump -C /var/lib/libvirt/images/FourEightySix.img
