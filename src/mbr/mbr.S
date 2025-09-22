@@ -16,8 +16,8 @@
 #define COM1 0x00
 #define VDEO 0x01
 
-#define MBR_ADDR    0x7C00
 #define MBR_SEGM    0x07C0
+#define KRN_SEGM    0x0040
 
 #define prints(s)   pushw %si; movw $(s), %si; call strout; popw %si
 
@@ -64,10 +64,10 @@ _init_COM1:
  * shadow-os will do something completely different, there's no attempt at
  * portability since this is an educational OS built to run in 486 VM.
  * Strategy:
- * - copy the whole boot device to RAM 0000:0000
- * - blind jump to 0000:0200
+ * - copy the whole boot device to RAM 0040:0000
+ * - blind jump to 0040:0200
  * Assumptions:
- * - boot device size will fit in 0000:FFFF
+ * - boot device size will be limited to 64KiB (Thanks Bill!)
  * - LBA addressing is avaialble
  * - I don't know how end of device will be signaled, read error? */
 load_all:
@@ -91,9 +91,9 @@ load_all:
 	 *			0x0004	DWORD	seg:offset of transfer buffer
 	 *			0x0008	QWORD	starting sector number
 	 */
-	movb	$0x42,      %ah
-    movb    bootdev,    %dl
-	movw	$lba_cmd_packet, %si
+	movb	$0x42,              %ah
+    movb    bootdev,            %dl
+	movw	$lba_cmd_packet,    %si
 	int     $0x13
     jnc     lba_read_success
 lba_read_failed:
@@ -131,18 +131,16 @@ halt:
 
 /*******************************************************************************
  * Function: word_to_ascii_out
-/******************************************************************************/
+ * Purpose: convert int to ascii before falling through to charout */
 word_to_ascii_out:
     pushw   %ax
-    shrw    $8,%ax
+    shrw    $8,%ax              /* hight byte */
     call    byte_to_ascii_out
-    popw    %ax
+    popw    %ax                 /* low byte */
     call    byte_to_ascii_out
     ret
-
 /*******************************************************************************
- * Function: byte_to_ascii_out
- * Purpose: convert int to ascii before falling through to charout */
+ * Function: byte_to_ascii_out */
 byte_to_ascii_out:
     pushw   %ax
     shr     $4,         %al     /* handle high nibble */
@@ -152,14 +150,11 @@ byte_to_ascii_out:
     ret
 nibble_ascii_out:
     andw    $0xF,       %ax     /* filter the nibble */
-    testb   %al,        0x09    /* check for 0-9 or A-F */
-    ja      nibble_txt_out      /* when under, go to 0-9 handler */
-    addb    $'0',       %al
-    call    charout
-    ret
-nibble_txt_out:
-    addb    $('A'-0xA), %al     /* fall through to A-F handler */
-    call    charout
+    addb    $0x90,      %al     /* setup for decmial arithmatic, int2hex */
+    daa                         /* crank 1, int2hex */
+    adc     $0x40,      %al     /* reset for decmial arithmatic, int2hex */
+    daa                         /* crank 2, int2hex */
+    call    charout             /* int2hex complete */
     ret
 /******************************************************************************/
 
