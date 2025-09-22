@@ -9,15 +9,23 @@
  ******************************************************************************/
 
 /*******************************************************************************
- * Missing in the above list of certainties is the IVT.  BIOS loads IVT at
- * 0000:0000 until 0000:0399
- ******************************************************************************/
+ * Missing in the above: https://wiki.osdev.org/Memory_Map_(x86) */
+/* 0000:0000 until 0000:03FF IVT
+/* 0040:0000 until 0040:00FF BDA */
+/* 0040:0100 == 0050:0000 */
+/* 0050:0000 until 7000:FFFF Conventional Memory */
+#define KRN_SEGM    0x0050 /* 0x00500 - 0x104FF */
+#define MBR_SEGM    0x07C0 /* BIOS loads us here, 0x07C00, within KRN_SEGM */
+#define STK_SEGM    0x7000 /* 7000:FFFF == 0x7FFFF stack at top of low RAM */
+/* 8000:0000 until 9000:FFFF EBDA */
+/* A000:0000 until B000:FFFF VRAM */
+/* C000:0000 until C000:7FFF BIOS Expansion */
+/* C000:8000 until E000:FFFF VGA BIOS */
+/* F000:0000 until F000:FFFF Motherboard BIOS */
+/******************************************************************************/
 
 #define COM1 0x00
 #define VDEO 0x01
-
-#define MBR_SEGM    0x07C0
-#define KRN_SEGM    0x0040
 
 #define prints(s)   pushw %si; movw $(s), %si; call strout; popw %si
 
@@ -31,17 +39,18 @@ _start:
     ljmp    $MBR_SEGM,  $_init_registers
 _init_registers:
     cli
-    movw    %cs,    %ax /* copy the code segment ... */
-    movw    %ax,    %ds /* ... to the data segment */
-    movw    %ax,    %es /* and to the extra segment */
-    movw    %ax,    %fs /* and to the F segment */
-    movw    %ax,    %gs /* and to the G segment */
-    movw    %ax,    %ss /* and the stack segment */
-    movw    $0,     %sp /* set the stack pointer to zero 07C0:FFFF -> 17BF0 */
-    movw    $0,     %bp /* set the base pointer to zero */
+    movw    %cs,        %ax /* copy the code segment ... */
+    movw    %ax,        %ds /* ... to the data segment */
+    movw    %ax,        %es /* and to the extra segment */
+    movw    %ax,        %fs /* and to the F segment */
+    movw    %ax,        %gs /* and to the G segment */
+    movw    $STK_SEGM,  %ax /* and the stack segment */
+    movw    %ax,  %ss /* and the stack segment */
+    movw    $0,         %sp /* set the stack pointer to zero */
+    movw    $0,         %bp /* set the base pointer to zero */
     sti
 save_bootdev:
-    movb    %dl,    bootdev
+    movb    %dl,        bootdev
 /*******************************************************************************
  * Initialize the serial port to 9600 8N1 */
 #ifdef COM1
@@ -51,8 +60,8 @@ _init_COM1:
 	int     $0x14
 #endif /* COM1 */
 /*******************************************************************************
- * Write dx to the consoles */
- print_dx:
+ * Write bootdev to the consoles */
+ print_bootdev:
     movb    bootdev,    %al
     call    byte_to_ascii_out
 /*******************************************************************************
@@ -93,7 +102,7 @@ load_all:
 	 */
 	movb	$0x42,              %ah
     movb    bootdev,            %dl
-	movw	$lba_cmd_packet,    %si
+	movw	lba_cmd_packet,     %si
 	int     $0x13
     jnc     lba_read_success
 lba_read_failed:
@@ -165,6 +174,7 @@ nibble_ascii_out:
  * Inputs: al: the 8-bit ascii character to write
  * Outputs: None */
 charout:
+    pushw   %ax
 #ifdef COM1
     pushw   %dx             /* save state of dx */
     movb    $0x01,  %ah     /* for int14h */
@@ -179,6 +189,7 @@ charout:
     int     $0x10
     popw    %bx
 #endif /* VDEO */
+    popw    %ax
     ret
 /******************************************************************************/
 
@@ -228,15 +239,16 @@ bootdev:
 
 
 lba_cmd_packet:
-	.byte 0x18          /* 0x0000 BYTE  packet size (0x10 or 0x18) */
+	.byte 0x10          /* 0x0000 BYTE  packet size (0x10 or 0x18) */
 	.byte 0x00          /* 0x0001 BYTE  reserved (should be 0) */
 lba_cmd_sector_count:
 	.word 1             /* 0x0002 WORD  sectors to transfer (max 127) */
-    .word 0x0000        /* 0x0004 WORD  seg: of transfer buffer */
+    .word KRN_SEGM      /* 0x0004 WORD  seg: of transfer buffer */
 	.word 0x0000        /* 0x0006 WORD  :offset of transfer buffer */
 lba_cmd_sector_start:
     .long 0x00000000    /* 0x0008 QWORD starting sector number */
-
+end_of_code:
+    nop
 
 
 /*******************************************************************************
@@ -245,4 +257,5 @@ lba_cmd_sector_start:
 signature:
 	.short	0xAA55
 	. = 0x200
+_krn_init:
 /******************************************************************************/
