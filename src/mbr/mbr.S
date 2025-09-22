@@ -11,6 +11,11 @@
 #define COM1 0x00
 #define VDEO 0x01
 
+#define MBR_ADDR    0x7C00
+#define MBR_SIZE    0x0200
+
+#define prints(s)   pushw %si; movw $(s+MBR_ADDR), %si; call strout; popw %si
+
 	.text
 	.code16
 
@@ -18,13 +23,14 @@
  * MBR */
     .globl _start
 _start:
-    ljmp    $0x0000, $0x7C05    /* set code segment to 0x0000 */
-    jmp     _init
+    ljmp    $0x0000, $(MBR_ADDR+_init)    /* set code segment to 0x0000 */
 
-osname: .ascii  "\r\nshadow-os"
-crlf:   .asciz  "\r\n"
+osname:  .ascii  "\r\nshadow-os"
+crlf:    .asciz  "\r\n"
+halting: .asciz  "halting"
 
 _init:
+    cli
     movw    %cs,    %ax /* copy the code segment to all other segments ... */
     movw    %ax,    %ss /* ... to the stack segment */
     movw    %ax,    %ds /* ... to the data segment */
@@ -67,15 +73,13 @@ _init_COM1:
 /*******************************************************************************
  * Write the OS name to the consoles */
  print_osname:
-    pushw   %si
-    movw    $(0x7C00 + osname - _start),    %si
-    call    strout
-    popw    %si
+    prints(osname)
 /******************************************************************************/
 
 
 /*******************************************************************************
  * End MBR program */
+    prints(halting)
 halt:
     sti
     hlt
@@ -122,9 +126,8 @@ strout:
     jmp     strout_2
 strout_1:
     call    charout         /* print the character */
-    addw    $1,     %si     /* increment the source index */
 strout_2:
-    movb    (%si),  %al     /* copy the character to ax */
+    lodsb                   /* copy the character to al, increment si */
     testb   %al,    %al     /* test if it is the null terminator */
     jnz     strout_1        /* else move to the next character */
 strout_fin:
