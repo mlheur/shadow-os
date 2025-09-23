@@ -80,6 +80,9 @@ _init_COM1:
  * - LBA fails, AH=1: invalid function; use CHS
  * - I don't know how end of device will be signaled, read error? */
 load_all:
+    movw    bootdev, %ax
+    movw    %ax, chs_cmd_struct.device
+chs_read:
 /* CHS Read: https://fd.lod.bz/rbil/interrup/bios/1302.html#642
 INT 13 - DISK - READ SECTOR(S) INTO MEMORY     
 	AH = 02h
@@ -96,30 +99,24 @@ Return: CF set on error
 	AH = status (see #00234)
 	AL = number of sectors transferred (only valid if CF set for some BIOSes)
 */
-chs_read_80:
     /**** SAVE STATE ****/
     pushw   %ax
     pushw   %bx
     pushw   %cx
     pushw   %dx
     /*** PREP THE THING ****/
-    movw    $KRN_SEGM,  %ax /* for setting es */
-    movw    %ax,        %es /* segment 0050:0000 */
-    movb    $0x00,      %dh /* head zero */
-    movb    bootdev,    %dl /* whatever device we booted from */
-    movb    $0x00,      %ch /* Read starting on cylinder zero */
-    movb    $0x00,      %cl /* sector 0, still cylinder zero */
-    movw    $0x0000,    %bx /* offset 0050:0000 */
-    movb    $0x02,      %ah /* CHS Read function */
-    movb    $0x80,      %al /* Read 0x80 bytes at a time */
+    movb    chs_cmd_struct.funcid,          %ah /* CHS Read function */
+    movw    chs_cmd_struct.segm,            %ax /* for setting es ... */
+    movw    %ax,                            %es /* ... segment to 0050:0000 */
+    movw    chs_cmd_struct.offset,          %bx /* offset 0050:0000 */
+    movb    chs_cmd_struct.readlen,         %al /* Read 0x80 bytes at a time */
+    movb    chs_cmd_struct.device,          %dl /* whatever device we booted from */
+    movb    chs_cmd_struct.cylinder_lo,     %ch /* Read starting on cylinder zero */
+    movb    chs_cmd_struct.sector_cylhi,    %cl /* sector 0, still cylinder zero */
+    movb    chs_cmd_struct.head,            %dh /* head zero */
     /*** DO THE THING ***/
     int     $0x13
-    jnc     chs_read_end
-chs_read_failed:
-    prints(msg_chs_failed)
-    call    word_to_ascii_out
-    prints(crlf)
-    jmp     halt
+    jc      chs_read_failed
 chs_read_end:
     /* Give some feedback out the console */
     movb    dot,        %al
@@ -129,7 +126,29 @@ chs_read_end:
     popw    %bx
     popw    %cx
     popw    %dx
-
+    jmp     _chs
+chs_cmd_struct.funcid:
+    .byte   0x02
+chs_cmd_struct.device:
+    .byte   0xA5
+chs_cmd_struct.segm:
+    .word   KRN_SEGM
+chs_cmd_struct.offset:
+    .word   0x0000
+chs_cmd_struct.readlen:
+    .byte   0x00
+chs_cmd_struct.cylinder_lo:
+    .byte   0x00
+chs_cmd_struct.sector_cylhi:
+    .byte   0x00
+chs_cmd_struct.head:
+    .byte   0x00
+chs_read_failed:
+    prints(msg_chs_failed)
+    call    word_to_ascii_out
+    prints(crlf)
+    jmp     halt
+_chs:
 /*******************************************************************************
  * End MBR program */
     prints(msg_halting)
