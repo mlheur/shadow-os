@@ -27,22 +27,6 @@
 #define COM1 0x00
 #define VDEO 0x01
 
-#ifdef COM1
-#define COM1_OUT \
-    pushw %dx; movb $0x01,%ah; movb $COM1,%dl; int $0x14; popw %dx
-#else
-#define COM1_OUT
-#endif /* COM1 */
-
-#ifdef VDEO
-#define VDEO_OUT \
-    pushw %bx; movb $0x0e,%ah; movw $VDEO,%bx; int $0x10; popw %bx
-#else
-#define VDEO_OUT
-#endif /* VDEO */
-
-#define CHAROUT     COM1_OUT; VDEO_OUT
-
 #define prints(s)   pushw %si; movw $(s), %si; call strout; popw %si
 
 	.text
@@ -112,7 +96,6 @@ Return: CF set on error
 	AH = status (see #00234)
 	AL = number of sectors transferred (only valid if CF set for some BIOSes)
 */
-
 chs_read_80:
     /**** SAVE STATE ****/
     pushw   %ax
@@ -120,7 +103,7 @@ chs_read_80:
     pushw   %cx
     pushw   %dx
     /*** PREP THE THING ****/
-    movw    KRN_SEGM,   %ax /* for setting es */
+    movw    $KRN_SEGM,  %ax /* for setting es */
     movw    %ax,        %es /* segment 0050:0000 */
     movb    $0x00,      %dh /* head zero */
     movb    bootdev,    %dl /* whatever device we booted from */
@@ -131,21 +114,21 @@ chs_read_80:
     movb    $0x80,      %al /* Read 0x80 bytes at a time */
     /*** DO THE THING ***/
     int     $0x13
-    jc      chs_read_failed
+    jnc     chs_read_end
+chs_read_failed:
+    prints(msg_chs_failed)
+    call    word_to_ascii_out
+    prints(crlf)
+    jmp     halt
+chs_read_end:
     /* Give some feedback out the console */
     movb    dot,        %al
     call    charout
-chs_read_end:
     /**** LOAD STATE ****/
     popw    %ax
     popw    %bx
     popw    %cx
     popw    %dx
-    ret
-chs_read_failed:
-    prints(msg_chs_failed)
-    call    word_to_ascii_out
-    jmp     chs_read_end
 
 /*******************************************************************************
  * End MBR program */
@@ -158,44 +141,61 @@ halt:
 
 
 /*******************************************************************************
+ * Function: byte_to_ascii_out */
+byte_to_ascii_out:
+    pushw   %dx                 /* save */
+    movw    %ax,        %dx     /* save */
+    jmp     _byte_to_ascii_out
+/*******************************************************************************
  * Function: word_to_ascii_out
  * Purpose: convert two-byte into to ascii, then send it out */
 word_to_ascii_out:
-    pushw   %dx
-    movw    %ax,        %dx
-    shrw    $8,         %ax     /* hight byte */
-    call    byte_to_ascii_out
-    movw    %dx,        %ax     /* low byte */
-    call    byte_to_ascii_out
+    pushw   %dx                 /* save */
+    movw    %ax,        %dx     /* save */
+    shrw    $12,        %ax     /* bits 0xF000 */
+    call    nibble_to_ascii_out
+    movw    %dx,        %ax     /* restore */
+    shrw    $8,         %ax     /* bits 0x0F00 */
+    call    nibble_to_ascii_out
+    movw    %dx,        %ax     /* restore */
+_byte_to_ascii_out:
+    shr     $4,         %al     /* bits 0x00F0 */
+    call    nibble_to_ascii_out
+    movw    %dx,        %ax     /* bits 0x000F */
+    call    nibble_to_ascii_out
     movw    %dx,        %ax     /* restore */
     popw    %dx                 /* restore */
     ret
 /*******************************************************************************
- * Function: byte_to_ascii_out */
-byte_to_ascii_out:
-    pushw   %ax
-    shr     $4,         %al     /* handle high nibble */
-    call    nibble_to_ascii_out
-    popw    %ax                 /* handle low nibble */
-    call    nibble_to_ascii_out
-    ret
+ * Function: nibble_to_ascii_out */
 nibble_to_ascii_out:
-    andw    $0xF,       %ax     /* filter the nibble */
+    andw    $0x000F,    %ax     /* filter the nibble */
     addb    $0x90,      %al     /* setup for decmial arithmatic, int2hex */
     daa                         /* crank 1, int2hex */
     adc     $0x40,      %al     /* reset for decmial arithmatic, int2hex */
     daa                         /* crank 2, int2hex */
-    call    charout             /* int2hex complete */
-    ret
-/******************************************************************************/
-
-
+    /* int2hex complete, fall through to charout */
 /*******************************************************************************
  * Function: charout
  * Purpose: write a character to serial and/or video consoles
  * Inputs: al: the 8-bit ascii character to write
  * Outputs: None */
-charout: CHAROUT; ret
+charout:
+#ifdef VDEO
+    pushw   %bx
+    movb    $0x0e,  %ah
+    movw    $VDEO,  %bx
+    int     $0x10
+    popw    %bx
+#endif /* VDEO */
+#ifdef COM1
+    pushw   %dx
+    movb    $0x01,  %ah
+    movw    $COM1,  %dx
+    int     $0x14
+    popw    %dx
+#endif /* COM1 */
+    ret
 /******************************************************************************/
 
 
