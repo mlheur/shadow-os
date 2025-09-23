@@ -12,7 +12,7 @@
  * Missing in the above: https://wiki.osdev.org/Memory_Map_(x86) */
 /* 0000:0000 until 0000:03FF IVT
 /* 0040:0000 until 0040:00FF BDA */
-/* 0040:0100 == 1000:0000 */
+/* 0040:0100 == 0050:0000 */
 /* 1000:0000 until 7000:FFFF Conventional Memory */
 #define KRN_SEGM    0x1000 /* 0x10000 - 0x1FFFF */
 #define MBR_SEGM    0x07C0 /* BIOS loads us here, 0x07C00, within KRN_SEGM */
