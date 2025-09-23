@@ -80,53 +80,54 @@ _init_COM1:
  * - LBA fails, AH=1: invalid function; use CHS
  * - I don't know how end of device will be signaled, read error? */
 load_all:
-    movw    bootdev, %ax
-    movw    %ax, chs_cmd_struct.device
-chs_read:
-/* CHS Read: https://fd.lod.bz/rbil/interrup/bios/1302.html#642
-INT 13 - DISK - READ SECTOR(S) INTO MEMORY     
-	AH = 02h
-	AL = number of sectors to read (must be nonzero)
-	CH = low eight bits of cylinder number
-	CL = sector number 1-63 (bits 0-5)
-	     high two bits of cylinder (bits 6-7, hard disk only)
-	DH = head number
-	DL = drive number (bit 7 set for hard disk)
-	ES:BX -> data buffer
-Return: CF set on error
-	    if AH = 11h (corrected ECC error), AL = burst length
-	CF clear if successful
-	AH = status (see #00234)
-	AL = number of sectors transferred (only valid if CF set for some BIOSes)
-*/
-    /**** SAVE STATE ****/
-    pushw   %ax
-    pushw   %bx
-    pushw   %cx
-    pushw   %dx
-    /*** PREP THE THING ****/
-    movb    chs_cmd_struct.funcid,          %ah /* CHS Read function */
-    movw    chs_cmd_struct.segm,            %ax /* for setting es ... */
-    movw    %ax,                            %es /* ... segment to 0050:0000 */
-    movw    chs_cmd_struct.offset,          %bx /* offset 0050:0000 */
-    movb    chs_cmd_struct.readlen,         %al /* Read 0x80 bytes at a time */
-    movb    chs_cmd_struct.device,          %dl /* whatever device we booted from */
-    movb    chs_cmd_struct.cylinder_lo,     %ch /* Read starting on cylinder zero */
-    movb    chs_cmd_struct.sector_cylhi,    %cl /* sector 0, still cylinder zero */
-    movb    chs_cmd_struct.head,            %dh /* head zero */
-    /*** DO THE THING ***/
-    int     $0x13
-    jc      chs_read_failed
-chs_read_end:
-    /* Give some feedback out the console */
-    movb    dot,        %al
-    call    charout
-    /**** LOAD STATE ****/
-    popw    %ax
-    popw    %bx
-    popw    %cx
-    popw    %dx
-    jmp     _chs
+    movb    bootdev,                %al
+    movb    %al,                    chs_cmd_struct.device
+load_next:
+    movb    $0x80,                  chs_cmd_struct.readlen
+    call    chs_read
+    movb    %ah,                    chs_cmd_struct.return
+    movb    %al,                    chs_cmd_struct.readlen /* get how much was read ... */
+    call    word_to_ascii_out
+    testb   %ah,%ah
+    jnz     load_failed /* ah != 0: non-zer return code */
+    testb   %al,%al
+    jz      load_failed /* al == 0: nothing was read */
+    /* successful read */
+    addb    %al,                    chs_cmd_struct.offset /* ... increment the destination buffer that much */
+    movb    chs_cmd_struct.offset,  %al /* check if the destination buffer wrapped */
+    testb   %al,                    %al /* when al is back to zero, fall through */
+    jnz     load_next                   /* otherwise go back and load the next batch */
+    jmp     load_finished
+load_failed:
+/*******************************************************************************
+ * End MBR program */
+    prints(msg_halting)
+halt:
+    sti
+    hlt
+    jmp halt
+/******************************************************************************/
+
+load_finished:
+    jmp halt
+
+/*******************************************************************************
+ * CHS Read: https://fd.lod.bz/rbil/interrup/bios/1302.html#642
+ * INT 13 - DISK - READ SECTOR(S) INTO MEMORY     
+ *	AH = 02h
+ *	AL = number of sectors to read (must be nonzero)
+ *	CH = low eight bits of cylinder number
+ *	CL = sector number 1-63 (bits 0-5)
+ *	     high two bits of cylinder (bits 6-7, hard disk only)
+ *	DH = head number
+ *	DL = drive number (bit 7 set for hard disk)
+ *	ES:BX -> data buffer
+ * Return: CF set on error
+ *	    if AH = 11h (corrected ECC error), AL = burst length
+ *	CF clear if successful
+ *	AH = status (see #00234)
+ *	AL = number of sectors transferred (only valid if CF set for some BIOSes)
+ */
 chs_cmd_struct.funcid:
     .byte   0x02
 chs_cmd_struct.device:
@@ -143,20 +144,52 @@ chs_cmd_struct.sector_cylhi:
     .byte   0x00
 chs_cmd_struct.head:
     .byte   0x00
+chs_cmd_struct.return:
+    .byte   0x00
+chs_read:
+    /**** SAVE STATE ****/
+    pushw   %ax
+    pushw   %bx
+    pushw   %cx
+    pushw   %dx
+    /*** PREP THE THING ****/
+    movw    chs_cmd_struct.segm,            %ax /* for setting es ... */
+    movw    %ax,                            %es /* ... segment to 0050:0000 */
+    movb    chs_cmd_struct.head,            %dh /* head zero */
+    movb    chs_cmd_struct.device,          %dl /* whatever device we booted from */
+    movb    chs_cmd_struct.cylinder_lo,     %ch /* Read starting on cylinder zero */
+    movb    chs_cmd_struct.sector_cylhi,    %cl /* sector 0, still cylinder zero */
+    movw    chs_cmd_struct.offset,          %bx /* offset 0050:0000 */
+    movb    chs_cmd_struct.funcid,          %ah /* CHS Read function */
+    movb    chs_cmd_struct.readlen,         %al /* Read 0x80 bytes at a time */
+    /*** DO THE THING ***/
+    int     $0x13
+    movb    %al,                            chs_cmd_struct.readlen  /* return the number of bytes read at the same place it came from */
+    movb    %ah,                            chs_cmd_struct.return  /* status code from int13 */
+    jnc     chs_read_success
 chs_read_failed:
     prints(msg_chs_failed)
     call    word_to_ascii_out
     prints(crlf)
-    jmp     halt
-_chs:
+    ret
+chs_read_success:
+    /* Give some feedback out the console */
+    movb    dot,        %al
+    call    charout
+    /**** LOAD STATE ****/
+    popw    %ax
+    popw    %bx
+    popw    %cx
+    popw    %dx
+    ret
+
+
+
 /*******************************************************************************
- * End MBR program */
-    prints(msg_halting)
-halt:
-    sti
-    hlt
-    jmp halt
-/******************************************************************************/
+ * When data is copied from disk to ram at krn_segm, the following tty-output
+ * routines can be available as kernel calls with cs:=KRN_SEGM
+ ******************************************************************************/
+
 
 
 /*******************************************************************************
@@ -253,7 +286,10 @@ dot:
 bootdev:
     .byte   0xA5
 
-
+var8:
+    .byte   0x00
+var16:
+    .word   0x0000
 
 /*******************************************************************************
  * the last 2 bytes in the sector 0 contain the signature */

@@ -1,3 +1,4 @@
 *.log
 objs
 bin
+dumps
