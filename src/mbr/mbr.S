@@ -36,33 +36,33 @@
  * MBR */
     .globl _start
 _start:
-    ljmp    $MBR_SEGM,              $_init_registers
+    ljmp    $MBR_SEGM,                  $_init_registers
 _init_registers:
     cli
-    movw    %cs,                    %ax /* copy the code segment ... */
-    movw    %ax,                    %ds /* ... to the data segment */
-    movw    %ax,                    %es /* and to the extra segment */
-    movw    %ax,                    %fs /* and to the F segment */
-    movw    %ax,                    %gs /* and to the G segment */
-    movw    $STK_SEGM,              %ax /* and the stack segment */
-    movw    %ax,                    %ss /* and the stack segment */
-    movw    $0,                     %sp /* set the stack pointer to zero */
-    movw    $0,                     %bp /* set the base pointer to zero */
+    movw    %cs,                        %ax /* copy the code segment ... */
+    movw    %ax,                        %ds /* ... to the data segment */
+    movw    %ax,                        %es /* and to the extra segment */
+    movw    %ax,                        %fs /* and to the F segment */
+    movw    %ax,                        %gs /* and to the G segment */
+    movw    $STK_SEGM,                  %ax /* and the stack segment */
+    movw    %ax,                        %ss /* and the stack segment */
+    movw    $0,                         %sp /* set the stack pointer to zero */
+    movw    $0,                         %bp /* set the base pointer to zero */
     sti
 save_bootdev:
-    movb    %dl,                    bootdev
+    movb    %dl,                        bootdev
 /*******************************************************************************
  * Initialize the serial port to 9600 8N1 */
 #ifdef COM1
 _init_COM1:
-	movw	$0xE3,                  %ax
-	movw	$COM1,                  %dx
+	movw	$0xE3,                      %ax
+	movw	$COM1,                      %dx
 	int     $0x14
 #endif /* COM1 */
 /*******************************************************************************
  * Write bootdev to the consoles */
  print_bootdev:
-    movb    bootdev,                %al
+    movb    bootdev,                    %al
     call    byte_to_ascii_out
 /*******************************************************************************
  * Write the OS name to the consoles */
@@ -81,12 +81,12 @@ _init_COM1:
  * - I don't know how end of device will be signaled, read error? */
 load_all:
     movb    bootdev,                    %al
-    movb    %al,                        chs_cmd_struct.device
+    movb    %al,                        chs_cmd.device
 load_next:
-    movb    $1,                         chs_cmd_struct.readlen
+    movb    $1,                         chs_cmd.readlen
     call    chs_read
-    movb    chs_cmd_struct.return,      %ah
-    movb    chs_cmd_struct.readlen,     %al
+    movb    chs_cmd.return,             %ah
+    movb    chs_cmd.readlen,            %al
     testb   %ah,%ah
     jnz     load_failed /* ah != 0: non-zer return code */
     testb   %al,%al
@@ -94,19 +94,40 @@ load_next:
     /* successful read */
     pushw   %bx
 load_buffer_mover_start:
-    movw    chs_cmd_struct.readlen,     %bx
+    movw    chs_cmd.readlen,            %bx
     addw    $512,                       %bx
     subb    $1,                         %al
     testb   %al,%al
     jnz     load_buffer_mover_start
 load_buffer_mover_done:
-    movw    %bx,                        chs_cmd_struct.readlen
+    movw    %bx,                        chs_cmd.readlen
     popw    %bx
-    movw    chs_cmd_struct.cylinder,    %ax
-    addw    $1,                         %ax
-    movw    %ax,                        chs_cmd_struct.cylinder
+    movb    chs_cmd.sector_cylhi,       %al
+    andb    $0x3F,                      %al
+    testb   63,                         %al
+    je      load_next_cyl
+    movb    chs_cmd.sector_cylhi,       %al
+    addb    $1,                         %al
+    movb    %al,                        chs_cmd.sector_cylhi
     jnz     load_next                   /* otherwise go back and load the next batch */
     jmp     load_finished
+load_next_cyl:
+    movb    chs_cmd.cylinder_lo,        %al
+    addb    $1,                         %al
+    jc      load_next_cylhi
+    movb    %al,                        chs_cmd.cylinder_lo
+    jmp     load_next
+load_next_cylhi:
+    movb    $0,                         chs_cmd.cylinder_lo /* reset lower 8 bits */
+    movb    chs_cmd.sector_cylhi,       %al                 /* get the upper 2 bits */
+    addb    $40,                        %al                 /* increment */
+    jc      load_overflow
+    movb    %al,                        chs_cmd.sector_cylhi
+    jmp     load_next
+load_overflow_msg:
+    .asciz  "CHS read overflow"
+load_overflow:
+    prints(load_overflow_msg)
 load_failed:
 /*******************************************************************************
  * End MBR program */
@@ -137,48 +158,78 @@ load_finished:
  *	AH = status (see #00234)
  *	AL = number of sectors transferred (only valid if CF set for some BIOSes)
  */
-chs_cmd_struct.funcid:
+chs_msg:
+    .asciz  "CHS struct: "
+chs_cmd.funcid:
     .byte   0x02
-chs_cmd_struct.device:
+chs_cmd.device:
     .byte   0xA5
-chs_cmd_struct.segm:
+chs_cmd.segm:
     .word   KRN_SEGM
-chs_cmd_struct.offset:
+chs_cmd.offset:
     .word   0x0000
-chs_cmd_struct.readlen:
+chs_cmd.readlen:
     .byte   0x00
-chs_cmd_struct.cylinder_lo:
+chs_cmd.cylinder_lo:
     .byte   0x00
-chs_cmd_struct.sector_cylhi:
+chs_cmd.sector_cylhi:
     .byte   0x01
-chs_cmd_struct.head:
+chs_cmd.head:
     .byte   0x00
-chs_cmd_struct.return:
+chs_cmd.return:
     .byte   0x00
+/*  02
+    80
+    0010
+    0000
+    01
+    00
+    01
+    00
+    00 */
+/*  02
+    80
+    0010
+    0000
+    01
+    02
+    01
+    00
+    00 */
 chs_read:
     /**** SAVE STATE ****/
     pushw   %ax
     pushw   %bx
     pushw   %cx
     pushw   %dx
+    pushw   %si
+    prints(chs_msg)
+    movw    $chs_cmd.funcid,            %si
+    movw    $(chs_read-chs_cmd.funcid), %cx
+chs_print_next:
+    lodsb
+    call    byte_to_ascii_out
+    subw    $1,                         %cx
+    testw   %cx,                        %cx
+    jnz     chs_print_next
     /*** PREP THE THING ****/
-    movw    chs_cmd_struct.segm,            %ax /* for setting es ... */
-    movw    %ax,                            %es /* ... segment to 1000:0000 */
-    movb    chs_cmd_struct.device,          %dl /* whatever device we booted from */
-    movb    chs_cmd_struct.head,            %dh /* head zero */
-    movb    chs_cmd_struct.sector_cylhi,    %cl /* sector 0, still cylinder zero */
-    movb    chs_cmd_struct.cylinder_lo,     %ch /* Read starting on cylinder zero */
-    movw    chs_cmd_struct.offset,          %bx /* offset 1000:0000 */
-    movb    chs_cmd_struct.readlen,         %al /* Read 0x80 bytes at a time */
-    movb    chs_cmd_struct.funcid,          %ah /* CHS Read function */
+    movw    chs_cmd.segm,               %ax /* for setting es ... */
+    movw    %ax,                        %es /* ... segment to 1000:0000 */
+    movb    chs_cmd.device,             %dl /* whatever device we booted from */
+    movb    chs_cmd.head,               %dh /* head zero */
+    movb    chs_cmd.sector_cylhi,       %cl /* sector 0, still cylinder zero */
+    movb    chs_cmd.cylinder_lo,        %ch /* Read starting on cylinder zero */
+    movw    chs_cmd.offset,             %bx /* offset 1000:0000 */
+    movb    chs_cmd.readlen,            %al /* Read 0x80 bytes at a time */
+    movb    chs_cmd.funcid,             %ah /* CHS Read function */
     /*** DO THE THING ***/
     int     $0x13
-    movb    %al,                            chs_cmd_struct.readlen
-    movb    %ah,                            chs_cmd_struct.return
+    movb    %al,                        chs_cmd.readlen
+    movb    %ah,                        chs_cmd.return
     jc      chs_read_failed
 chs_read_success:
     /* Give some feedback out the console */
-    movb    dot,                            %al
+    movb    dot,                        %al
     call    charout
     jmp     chs_read_return
 chs_read_failed:
@@ -187,6 +238,7 @@ chs_read_failed:
     prints(crlf)
 chs_read_return:
     /**** LOAD STATE ****/
+    popw    %si
     popw    %dx
     popw    %cx
     popw    %bx
@@ -204,37 +256,37 @@ chs_read_return:
 /*******************************************************************************
  * Function: byte_to_ascii_out */
 byte_to_ascii_out:
-    pushw   %dx                                     /* save */
-    movw    %ax,                            %dx     /* save */
+    pushw   %dx                                 /* save */
+    movw    %ax,                        %dx     /* save */
     jmp     _byte_to_ascii_out
 /*******************************************************************************
  * Function: word_to_ascii_out
  * Purpose: convert two-byte into to ascii, then send it out */
 word_to_ascii_out:
-    pushw   %dx                                     /* save */
-    movw    %ax,                            %dx     /* save */
-    shrw    $12,                            %ax     /* bits 0xF000 */
+    pushw   %dx                                 /* save */
+    movw    %ax,                        %dx     /* save */
+    shrw    $12,                        %ax     /* bits 0xF000 */
     call    nibble_to_ascii_out
-    movw    %dx,                            %ax     /* restore */
-    shrw    $8,                             %ax     /* bits 0x0F00 */
+    movw    %dx,                        %ax     /* restore */
+    shrw    $8,                         %ax     /* bits 0x0F00 */
     call    nibble_to_ascii_out
-    movw    %dx,                            %ax     /* restore */
+    movw    %dx,                        %ax     /* restore */
 _byte_to_ascii_out:
-    shr     $4,                             %al     /* bits 0x00F0 */
+    shr     $4,                         %al     /* bits 0x00F0 */
     call    nibble_to_ascii_out
-    movw    %dx,                            %ax     /* bits 0x000F */
+    movw    %dx,                        %ax     /* bits 0x000F */
     call    nibble_to_ascii_out
-    movw    %dx,                            %ax     /* restore */
-    popw    %dx                                     /* restore */
+    movw    %dx,                        %ax     /* restore */
+    popw    %dx                                 /* restore */
     ret
 /*******************************************************************************
  * Function: nibble_to_ascii_out */
 nibble_to_ascii_out:
-    andw    $0x000F,                        %ax     /* filter the nibble */
-    addb    $0x90,                          %al     /* setup for decmial arithmatic, int2hex */
-    daa                                             /* crank 1, int2hex */
-    adc     $0x40,                          %al     /* reset for decmial arithmatic, int2hex */
-    daa                                             /* crank 2, int2hex */
+    andw    $0x000F,                    %ax     /* filter the nibble */
+    addb    $0x90,                      %al     /* setup for decmial arithmatic, int2hex */
+    daa                                         /* crank 1, int2hex */
+    adc     $0x40,                      %al     /* reset for decmial arithmatic, int2hex */
+    daa                                         /* crank 2, int2hex */
     /* int2hex complete, fall through to charout */
 /*******************************************************************************
  * Function: charout

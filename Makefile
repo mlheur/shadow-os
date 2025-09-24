@@ -1,16 +1,21 @@
+IMAGE := $(shell cat .image)
+
 all : bin/mbr
 
 bin/mbr : objs/mbr.o
+	test -d dumps || mkdir dumps
+	test -d bin || mkdir bin
 	objcopy -O binary -j .text objs/mbr.o bin/mbr
 	objdump -M att -m i8086 -d objs/mbr.o > dumps/mbr.dump
 
 objs/mbr.o : src/mbr/mbr.S
+	test -d objs || mkdir objs
 	gcc -Wa,--32 -o objs/mbr.o -c src/mbr/mbr.S
 
 clean : 
 	rm -f bin/* objs/*.o dumps/*
 
 install : bin/mbr
-	sudo dd if=bin/mbr of=/var/lib/libvirt/images/FourEightySix.img bs=512 count=1
-	sudo dd if=/dev/zero of=/var/lib/libvirt/images/FourEightySix.img bs=512 seek=1 count=127
-	sudo hexdump -C /var/lib/libvirt/images/FourEightySix.img
+	dd if=bin/mbr of=${IMAGE} bs=512 count=1
+	dd if=/dev/zero of=${IMAGE} bs=512 seek=1 count=127
+	hexdump -C ${IMAGE}
