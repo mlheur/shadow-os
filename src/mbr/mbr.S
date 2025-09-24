@@ -83,6 +83,16 @@ load_all:
     movb    bootdev,                    %al
     movb    %al,                        chs_cmd.device
 load_next:
+check_sector_overflow:
+    movb    chs_cmd.sector_cylhi,       %al
+    andb    $0x3F,                      %al
+    testb   63,                         %al
+    je      load_next_cyl
+load_next_sector:
+    movb    chs_cmd.sector_cylhi,       %al
+    addb    $1,                         %al
+    movb    %al,                        chs_cmd.sector_cylhi
+load_do_read:
     movb    $1,                         chs_cmd.readlen
     call    chs_read
     movb    chs_cmd.return,             %ah
@@ -92,23 +102,12 @@ load_next:
     testb   %al,%al
     jz      load_failed /* al == 0: nothing was read */
     /* successful read */
-    pushw   %bx
+    movb    chs_cmd.readlen,            %al
 load_buffer_mover_start:
-    movw    chs_cmd.readlen,            %bx
-    addw    $512,                       %bx
+    addw    512,                        %bx
     subb    $1,                         %al
     testb   %al,%al
     jnz     load_buffer_mover_start
-load_buffer_mover_done:
-    movw    %bx,                        chs_cmd.readlen
-    popw    %bx
-    movb    chs_cmd.sector_cylhi,       %al
-    andb    $0x3F,                      %al
-    testb   63,                         %al
-    je      load_next_cyl
-    movb    chs_cmd.sector_cylhi,       %al
-    addb    $1,                         %al
-    movb    %al,                        chs_cmd.sector_cylhi
     jnz     load_next                   /* otherwise go back and load the next batch */
     jmp     load_finished
 load_next_cyl:
@@ -173,7 +172,7 @@ chs_cmd.readlen:
 chs_cmd.cylinder_lo:
     .byte   0x00
 chs_cmd.sector_cylhi:
-    .byte   0x01
+    .byte   0x00
 chs_cmd.head:
     .byte   0x00
 chs_cmd.return:
