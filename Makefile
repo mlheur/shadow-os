@@ -10,7 +10,7 @@ bin/mbr : objs/mbr.o
 
 objs/mbr.o : src/mbr/mbr.S
 	test -d objs || mkdir objs
-	gcc -Wa,--32 -o objs/mbr.o -c src/mbr/mbr.S
+	gcc -g -Wa,--32 -o objs/mbr.o -c src/mbr/mbr.S
 
 clean : 
 	rm -f bin/* objs/*.o dumps/*
