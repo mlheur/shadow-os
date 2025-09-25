@@ -10,7 +10,7 @@
             "break *0x7c00+save_bootdev",
             "break *0x7c00+save_geom",
             "break *0x7c00+load_next_cylhi",
-            "break *0x7c00+increment_buffer_pointer"
+            "break *0x7c00+increment_buffer_pointer",
             "continue"
         ],
         "pregdbcommands": [

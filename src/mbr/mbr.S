@@ -91,6 +91,8 @@ save_geom:      movb    %ch,            disk_data.max_cylinder_lo
  * - boot device size will be limited to 64KiB (Thanks Bill!)
  * - I don't know how end of device will be signaled, read error? */
 load_bootdev_to_krn_segm:
+    movw    $KRN_SEGM,                  %ax
+    movw    %ax,                        chs_cmd.segm
     movb    bootdev,                    %al
     movb    %al,                        chs_cmd.device
 load_next_sector:
@@ -137,7 +139,7 @@ load_next_cyl:
     movb    chs_cmd.sector_cylhi,       %al /* read the high two bits */
     andb    $0xC1,                      %al /* just the two bits, and force the sector to 1 */
     movb    %al,                        chs_cmd.sector_cylhi
-    jmp     read_sector
+    jmp     really_load_next_sector
 load_next_cylhi:
     movb    $0,                         chs_cmd.cylinder_lo /* reset lower eight bits */
     movb    chs_cmd.sector_cylhi,       %al                 /* get the upper two bits */
@@ -146,7 +148,7 @@ load_next_cylhi:
     addb    $40,                        %al                 /* increment just those two bits */
     jc      load_next_head              /* reminiscent of Towers of Hanoi */
     movb    %al,                        chs_cmd.sector_cylhi /* else save it back before invoking the interrupt */
-    jmp     read_sector                 /* invoke the interrupt */
+    jmp     really_load_next_sector     /* invoke the interrupt */
 load_next_head:
     xorb    %al,%al /* get a zero */
     movb    %al,                        chs_cmd.sector_cylhi /* reset the sector, cylinder */
@@ -155,7 +157,7 @@ load_next_head:
     addb    $1,                         %al /* ... ++ ... */
     jc      load_overflow               /* unable to read past the last head */
     movb    %al,                        chs_cmd.head /* ... and saved */
-    jmp     read_sector
+    jmp     really_load_next_sector
 load_overflow:
     prints(msg_chs_overflow)
 load_failed:
@@ -198,7 +200,7 @@ chs_read:
     pushw   %si
 chs_load_struct:
     /*** PREP THE THING ****/
-    movw    $KRN_SEGM,                  %ax /* for setting es ... */
+    movw    chs_cmd.segm,               %ax /* for setting es ... */
     movw    %ax,                        %es /* ... segment to 1000:0000 */
     movb    chs_cmd.device,             %dl /* whatever device we booted from */
     movb    chs_cmd.head,               %dh /* head zero */
@@ -336,6 +338,7 @@ _krn_init:
 /******************************************************************************/
 bootdev:                        .byte 0
 chs_cmd:
+chs_cmd.segm:                   .word 0
 chs_cmd.device:                 .byte 0
 chs_cmd.offset:                 .word 0
 chs_cmd.readlen:                .byte 0
