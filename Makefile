@@ -16,6 +16,6 @@ clean :
 	rm -f bin/* objs/*.o dumps/*
 
 install : bin/mbr
-	dd if=bin/mbr of=${IMAGE} bs=512 count=1
-	dd if=/dev/zero of=${IMAGE} bs=512 seek=1 count=127
+	dd if=bin/mbr of=${IMAGE} bs=512 count=2
+	dd if=/dev/zero of=${IMAGE} bs=512 seek=1 count=126
 	hexdump -C ${IMAGE}

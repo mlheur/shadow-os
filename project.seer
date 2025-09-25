@@ -1,0 +1,22 @@
+{
+    "seerproject": {
+        "connectmode": {
+            "gdbserver": "localhost:1234"
+        },
+        "executable": "./objs/mbr.o",
+        "postgdbcommands": [
+            "restore ./bin/mbr binary 0x7c00",
+            "break *0x7c00",
+            "break *0x7c00+save_bootdev",
+            "break *0x7c00+save_geom",
+            "break *0x7c00+load_next_cylhi",
+            "break *0x7c00+increment_buffer_pointer"
+            "continue"
+        ],
+        "pregdbcommands": [
+            "set arch i8086"
+        ],
+        "symbolfile": "",
+        "workingdirectory": ""
+    }
+}
