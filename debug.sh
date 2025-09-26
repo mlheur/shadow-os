@@ -1,0 +1,1 @@
+make install && { /bin/seergdb --project project.seer & GDB=1 ./run-qemu.sh; }
