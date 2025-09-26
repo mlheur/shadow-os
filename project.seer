@@ -7,9 +7,18 @@
         "postgdbcommands": [
             "restore ./bin/mbr binary 0x7c00",
             "break *0x7c00+_start",
-            "break *0x7c00+init_segments",
             "break *0x7c00+_identity",
             "break *0x7c00+_handover",
+            "break *0x7c00+load_bootdev",
+            "break *0x7c00+mzset_structs",
+            "break *0x7c00+inquire_geom",
+            "break *0x7c00+unmung_cylsec",
+            "break *0x7c00+save_geom",
+            "break *0x7c00+chs_read",
+            "break *0x7c00+chs_success",
+            "break *0x7c00+errchecking",
+            "break *0x7c00+incr_buff_ptr",
+            "break *0x7c00+increment_chs",
             "continue"
         ],
         "pregdbcommands": [
