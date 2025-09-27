@@ -142,7 +142,7 @@ increment_shc:  movw    drvdata.cylsec,     %bx /* get the metric against which 
                 andw    $0xC0FF,            %bx /* filter the 6-bit sector portion */
                 movw    chs_cmd.cylsec,     %ax /* get the 16-bit mangled cylsec address that was just read from */
                 andw    $0xC0FF,            %ax /* filter the 6-bit sector portion */
-                subb    %ax,                %bx /* check if the sector limit is reached ... */
+                subw    %ax,                %bx /* check if the sector limit is reached ... */
                 jz      wrap_head           /* ... and wrap the head if it is ... */
                 movw    chs_cmd.cylsec,     %ax /* ... else, revert the unfiltered cylsec */
                 addw    $0x0400,            %ax /* advance the sector for real this time ... */
@@ -172,9 +172,9 @@ wrap_cylinder:  movb    $0,                 chs_cmd.head /* reset head to zero *
                 movw    chs_cmd.cylsec,     %ax /* get the current mangled address */
                 andw    $0xC0FF,            %ax /* filter out sectors to zero */
                 movw    drvdata.cylsec,     %bx /* get the metric against which we'll test the limits */
-                andw    $0xC0FF,            %ax /* filter out sectors to zero */
+                andw    $0xC0FF,            %bx /* filter out sectors to zero */
                 subw    %ax,                %bx /* check if the limit is reached */
-                je      chs_overflow        /* unable to read past end of disk */
+                jz      chs_overflow        /* unable to read past end of disk */
                 rorb    $2,                 %al /* mangled cylsec sits in ax */
                 xchgb   %al,                %ah /* put the cylinder portion as LSB */
                 addb    $1,                 %ax /* increment the cylinder */
@@ -188,6 +188,7 @@ TODO: pick up work here
 
 
                 movw    %ax,                chs_cmd.cylsec /* set cylsec for the next read */
+                movb    $0,                 chs_cmd.head /* reset to head 0 */
                 jmp     head_wrapped        /* and we're done */
 /******************************************************************************/
 load_failed:    movb    %ah,                %bl /* save ah for later by altty */
