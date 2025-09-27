@@ -23,6 +23,9 @@
 
 
 #define prints(s)   movw $(s), %si; call strout /* clobbers ax and si */
+#define printb(b)   movw (b), %ax; call altty; xorb %ah,%ah /* clobbers ah */
+
+#define READLEN     $0x01
 
 
 /*******************************************************************************
@@ -30,8 +33,8 @@
 	.text
 	.code16
     .globl  _start
-_start:         lcall   $MBR_SEGM,          $init_bootdev /* set cs register */
-_handover:      lcall   $KRN_SEGM,          $init_kernel
+_start:         lcall   $MBR_SEGM,          $MBR
+_handover:      lcall   $KRN_SEGM,          $KRN
 return:         ret                         /* also used for indirect "Jcc return" */
 /******************************************************************************/
 
@@ -46,17 +49,20 @@ return:         ret                         /* also used for indirect "Jcc retur
  * - blind jump to 1000:0200
  * Assumptions:
  * - boot device size will be limited to 64KiB, will be exactly that size.
- * - we can terminate the read when the chs_cmd.offset wraps back to zero? */
+ * - we can terminate the read when the buffer pointer is advanced by 64KiB */
 /******************************************************************************/
 
 
 /*******************************************************************************
- * Function: init_bootdev
+ * Function: MBR
  * Inputs: 
  * - dl, the bootdev the bios read the MBR off of
- * - best to get here via far jump so we can use the local segment offset for all addressing */
-init_bootdev:   movw    %cs,                %ax /* copy the code segment address ... */
-                movw    %ax,                %ds /* ...  to data segment register for easy access to locals, such as the next line */
+ * - best to get here via long jump so we can use the local segment offset for all addressing */
+MBR:
+
+
+prep_segments:  movw    %cs,                %ax /* copy the code segment address ... */
+                movw    %ax,                %ds /* ...  to data segment register for easy access to locals, such as in save_bootdev */
 
 
 save_bootdev:   movb    %dl,                bootdev /* save the boot device for reuse throughout MBR */
@@ -64,10 +70,10 @@ save_bootdev:   movb    %dl,                bootdev /* save the boot device for 
 
 init_COM1:      movw	$0xE3,              %ax /* 9600-8-None-1 */
 	            xorw    %dx,                %dx /* port 0 */
-	            int     $0x14               /* apply port settings */
+	            int     $0x14               /* latch that into the serial controller's settings */
 
 
-/* Structures are addressed in unitialized RAM, memset(0) for all before use.
+/* Structures are addressed in unitialized RAM, here we memset(0) for all before use.
  * MBR depends on some of those zeros for initial CHS addressing values */
 mzset_structs:  xorw    %ax,                %ax /* STOS: zero the source register */
                 movw    $chs_cmd,           %di /* STOS: start at the chs_cmd struct */
@@ -100,11 +106,12 @@ save_cylsec:    movw    %cx,                drvdata.cylsec
 
 /* Prepare for CHS Reading, set the one-time and first-time values in chs_cmd */
 target_krn:     movw    $KRN_SEGM,          %ax
-                movw    %ax,                %es
-seek_sector1:   movw    $1,                 chs_cmd.cylsec
+                movw    %ax,                %es /* we have to guard es for the duration of MBR */
+seek_sector1:   movw    $1,                 chs_cmd.cylsec /* Cyl:0, Head:0, Sec:1 */
 
 
-/* Start reading the boot device, assume all registers are garbage, load from struct */
+/* Start reading the boot device, assume all+ registers are garbage, load from struct
+ *   +[guard es, was set above and is managed throughout] */
 /*******************************************************************************
  * CHS Read: https://fd.lod.bz/rbil/interrup/bios/1302.html
  * INT 13 - DISK - READ SECTOR(S) INTO MEMORY     
@@ -117,40 +124,44 @@ seek_sector1:   movw    $1,                 chs_cmd.cylsec
  *	DL = drive number (bit 7 set for hard disk)
  *	ES:BX -> data buffer
  ******************************************************************************/
-chs_read:       xorw    %bx,                %bx /* es was managed so bx can always be zero */
+chs_read:       call    print_chs_read_inputs
                 movb    bootdev,            %dl /* whatever device we booted from */
                 movb    chs_cmd.head,       %dh /* address the proper head */
                 movw    chs_cmd.cylsec,     %cx /* mangled cylsec value into cx */
-read_amount:    movw    $0x0201,            %ax /* CHS "read" function, 1 sector at a time (for now) */
-call_int_13:    int     $0x13               /* perform the read */
+                xorw    %bx,                %bx /* es was managed so bx can always be zero */
+                movb    READLEN,            %al /* how many sectors we'd like to read */
+                movb    $0x02,              %ah /* CHS "read" command */
+                int     $0x13               /* perform the read */
 errchecking:    jc      load_failed         /* handle any errors */
-chs_success:    movb    %al,                chs_cmd.readlen /* save sectors_read counter for reuse */
-printdot:       movb    $'.',               %al
-                call    altty               /* for some kind of feedback */
-                movb    chs_cmd.readlen,    %al /* restore sectors_read counter after printdot destroyed it */
-                xorb    %ah,                %ah /* wipe the leftovers of altty */
-                movw    %es,                %bx /* Advancing the buffer pointer by 512 bytes is done more easily via segment increment */
-incr_buff_ptr:  addw    $0x20,              %bx /* increment the segment pointer ... */
-                movw    %bx,                %es /* and store it in the segment register */
-                subb    $1,                 %al /* decrement the sectors_read counter */
-                jnz     incr_buff_ptr       /* non-zero counter means we have to move the buffer pointer some more */
-                subw    $(KRN_SEGM+0x1000), %bx /* check if the buffer pointer has totally advanced by 64k */
-                jz      return              /* init_bootdev is finished when 64KiB have been read */
-increment_shc:  movw    drvdata.cylsec,     %bx /* get the metric against which we'll test limits */
-                andw    $0x003F,            %bx /* filter the 6-bit sector portion */
-                movw    chs_cmd.cylsec,     %ax /* get the 16-bit mangled cylsec address that was just read from */
+
+
+/* ah=0, al=sectors_read, the read was successful, advance the buffer pointer */
+adv_buf_ptr:    movb    %al,                chs_cmd.readlen /* save sectors_read counter for reuse */
+                movw    %es,                %bx /* we need to do arithmatic on es, copy to bx */
+                movw    $0x20,              %ax /* get a 512-byte segment muliplicand */
+                mull    chs_cmd.readlen     /* use the sectors-read counter as the other multiplicand */
+                addw    %ax,                %bx /* advance bx by the results */
+                movw    %bx,                %es /* and save it back to es; bx still contains the new es value */
+check_complete: subw    $(KRN_SEGM+0x1000), %bx /* check if the buffer pointer has totally advanced by 64k */
+                jna     return              /* MBR is finished when >= 64KiB have been read */
+/* this is the only legitimate exit point for MBR, all other exits are due to failure and should jump to halt(ing) */
+
+
+/* advance the CHS structure similarily to advancing the buffer pointer */
+/* Each of the three wrappers below will set the whole CHS struct appropriately, and jump to the next chs_read iteration */
+wrap_sector:    movw    chs_cmd.cylsec,     %ax /* get the 16-bit mangled cylsec address that was just read from */
                 andw    $0x003F,            %ax /* filter the 6-bit sector portion */
-                subw    %ax,                %bx /* check if the sector limit is reached ... */
-                jz      wrap_head           /* ... and wrap the head if it is ... */
-                movw    chs_cmd.cylsec,     %ax /* ... else, revert the unfiltered cylsec */
-                addw    $0x0001,            %ax /* advance the sector for real this time ... */
-                movw    %ax,                chs_cmd.cylsec /* ... and save it back */
-head_wrapped:   xorb    %ah,                %ah /* prevent side effect of upcoming byte decrement */
-                movb    chs_cmd.readlen,    %al /* get back the qty of sectors read */
-                subb    $1,                 %al /* decrement it, when it hits zero ... */
-                jz      chs_read            /* ... go read the next sector */
-                movb    %al,                chs_cmd.readlen
-                jmp     increment_shc       /* else advance CHS again */
+                movzbw  chs_cmd.readlen,    %bx /* recall how many sectors were successfully read */
+                addw    %bx,                %ax /* advance the sector pointer that much ... */
+/* we advanced sectors by 1 **OR MORE**, check if we exceeded the sector limit, dx contains that value */
+                movw    drvdata.cylsec,     %cx /* get the last sector valid sector ID */
+                andw    $0x003F,            %cx /* filter just the 6-bit sector portion */
+                subw    %ax,                %cx /* compare the calculated sector ID against the limit, destroys cx */
+                ja      wrap_head           /* if ax is bigger than cx then the limit was exceeded, wrap to the next head */
+                movw    %ax,                chs_cmd.cylsec /* else the calculated sector ID is valid, commit it */
+                jmp     chs_read            /* go read the new sector(s) */
+
+
 /******************************************************************************/
 wrap_head:      movb    drvdata.head,       %bl /* get the metric against which we'll test limits */
                 movb    chs_cmd.head,       %al /* get the current value */
@@ -163,8 +174,24 @@ wrap_head:      movb    drvdata.head,       %bl /* get the metric against which 
                 movw    chs_cmd.cylsec,     %ax /* pull up the mangled cylsec ... */
                 andw    $0xFFC0,            %ax /* ... so we can keep the cylinder bits ... */
                 addw    $0x0001,            %ax /* ... and set the sector back to 1 */
-                movw    %ax,                chs_cmd.cylsec /* save that back */
-                jmp     head_wrapped        /* and we're done */
+/* this assumes we previously read _the last_ sector on the prior head, that's a bad assumption */
+/*
+ * Let's say we're reading 5 sectors at a time for no good reason.  It's likeley
+ * the last sector is 63.  When we advance to sector 61 and read 5 sectors, the BIOS may or may not
+ * read 2 sectors off the next head.  We'll know if the BIOS read 3 or 5 sectors based on the
+ * chs_cmd.readlen result.
+ *
+ * After advancing the head and seeking sector 1, we need to seek further by either 0 or 2 sectors.
+ *
+ * We know how many sectors were attempted to be read, that's hard-coded in the ax assignment of chs_read before the interrupt invokation.
+ */
+remaining_secs: movw    READLEN,            %bx /* recall how many sectors we wanted to read */
+                subb    chs_cmd.readlen,    %bl /* subtract how many were actually read, we're left with either 2 or 0 in bx */
+                addb    %bl,                %al /* add that many more to the sector ID */
+                movw    %ax,                chs_cmd.cylsec /* finally save the sector ID back to the CHS struct */
+                jmp     chs_read            /* and go read it */
+
+
 /******************************************************************************/
 wrap_cylinder:  movb    $0,                 chs_cmd.head /* reset head to zero */
                 movw    chs_cmd.cylsec,     %ax /* get the current mangled address */
@@ -180,23 +207,25 @@ wrap_cylinder:  movb    $0,                 chs_cmd.head /* reset head to zero *
                 xchgb   %ah,                %al /* remangle the cylsec */
                 rorb    $2,                 %al /* suffle zeroed sectors to lsb */
                 addb    $0x0001,            %al /* seek sector 1 */
-                movw    %ax,                chs_cmd.cylsec /* set cylsec for the next read */
-                jmp     head_wrapped        /* and we're done */
+                jmp     remaining_secs      /* and we're done */
+
+
 /******************************************************************************/
-load_failed:    movb    %ah,                %bl /* save ah for later by altty */
+chs_overflow:   prints  (msg_chs_overflow)
+                jmp     halt
+/******************************************************************************/
+load_failed:    movb    %ah,                %bl /* save ah against later clobbering by altty */
                 prints  (msg_chs_failed)
-                movb    %bl,                %al
+                movb    %bl,                %al /* bring back ao print its value */
                 call    byte_ascii_out
-                prints  (crlf)                
-/*******************************************************************************
- * End MBR program */
+                prints  (crlf)
+/******************************************************************************/
 halting:        prints  (msg_halting)
 halt:           sti
                 hlt
                 jmp     halt
 /******************************************************************************/
-chs_overflow:   prints  (msg_chs_overflow)
-                jmp     halt
+/* End MBR function */
 /******************************************************************************/
 
 
@@ -244,11 +273,7 @@ nibble_to_ascii_out:
     adc     $0x40,                          %al     /* reset for decmial arithmatic, int2hex */
     daa                                             /* crank 2, int2hex */
     /* int2hex complete, fall through to altty */
-/*******************************************************************************
- * Function:
- *  altty
- * Inputs:
- *  al: the byte to send */
+/******************************************************************************/
 altty:
 outb_com1:  pushw   %dx
             xorw    %dx,                    %dx /* Serial Port 0 */
@@ -285,21 +310,25 @@ crlf:               .asciz "\r\n"
 msg_halting:        .asciz "halting"
 msg_chs_failed:     .asciz "CHS read failed: %ah=0x"
 msg_chs_overflow:   .asciz "CHS read overflow"
+readlen:            .byte   1 /* valid values: 1-63 inclusive */
 
 
 /*******************************************************************************
- * the last 2 bytes in the sector 0 contain the signature */
+ * the last 2 bytes in the sector 0 must contain the signature */
 	. = 0x1fe
 signature:          .short 0xAA55
 	. = 0x200
-init_kernel:
-    prints          (osname)
+KRN: /* this label is a handy reference when the MBR hands off to the kernel */
+    prints          (osname) /* stub, will be overwritten post-assembly with a real kernel */
     jmp halting
 /******************************************************************************/
 
 
-/*******************************************************************************
- * Local Data: these will be left on disk when the bios loads, just pointers. */
+
+
+
+/******************************************************************************/
+/* Local Data: these will be left on disk when the bios loads, just pointers. */
 /******************************************************************************/
 bootdev:            .byte 0
 chs_cmd:
@@ -311,5 +340,4 @@ drvdata:
 drvdata.cylsec:     .word 0 /* saved here in mangled value */
 drvdata.head:       .byte 0
 drvdata_sz = . - drvdata
-
-	. = 0x400
+/******************************************************************************/
