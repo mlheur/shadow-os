@@ -6,22 +6,20 @@
  *  - the CPU register called dl contains the "drive number",
  *  - and that only 512 bytes of the bootsector have been loaded.
  * -- https://wiki.osdev.org/System_Initialization_(x86)
- * Missing in the above, taken from : https://wiki.osdev.org/Memory_Map_(x86)
- * 0000:0000 until 0000:03FF IVT
- * 0040:0000 until 0040:00FF BDA
- * 0040:0100 == 0050:0000
- * 0050:0000 until 7000:FFFF Conventional Memory
  ******************************************************************************/
+/* Missing in the above, taken from : https://wiki.osdev.org/Memory_Map_(x86) */
+/* 0000:0000 until 0000:03FF IVT Used by the BIOS, don't write here */
+/* 0040:0000 until 0040:00FF BDA Used by the BIOS, don't write here */
+/* 0040:0100 == 0050:0000 until 7000:FFFF Conventional Memory */
 #define MBR_SEGM 0x07C0 /* BIOS loads us here */
 #define KRN_SEGM 0x1000 /* 0x10000 - 0x1FFFF */
 #define STK_SEGM 0x7000 /* 7000:FFFF == 0x7FFFF stack at top of low RAM */
-/*******************************************************************************
- * 8000:0000 until 9000:FFFF EBDA
- * A000:0000 until B000:FFFF VRAM
- * C000:0000 until C000:7FFF BIOS Expansion
- * C000:8000 until E000:FFFF VGA BIOS
- * F000:0000 until F000:FFFF Motherboard BIOS
- ******************************************************************************/
+/* 8000:0000 until 9000:FFFF EBDA */
+/* A000:0000 until B000:FFFF VRAM */
+/* C000:0000 until C000:7FFF BIOS Expansion */
+/* C000:8000 until E000:FFFF VGA BIOS */
+/* F000:0000 until F000:FFFF Motherboard BIOS */
+/******************************************************************************/
 
 
 #define prints(s)   movw $(s), %si; call strout /* clobbers ax and si */
@@ -186,18 +184,18 @@ wrap_cylinder:  movb    $0,                 chs_cmd.head /* reset head to zero *
                 jmp     head_wrapped        /* and we're done */
 /******************************************************************************/
 load_failed:    movb    %ah,                %bl /* save ah for later by altty */
-                prints(msg_chs_failed)
+                prints  (msg_chs_failed)
                 movb    %bl,                %al
                 call    byte_ascii_out
-                prints(crlf)                
+                prints  (crlf)                
 /*******************************************************************************
  * End MBR program */
-halting:        prints(msg_halting)
+halting:        prints  (msg_halting)
 halt:           sti
                 hlt
                 jmp     halt
 /******************************************************************************/
-chs_overflow:   prints(msg_chs_overflow)
+chs_overflow:   prints  (msg_chs_overflow)
                 jmp     halt
 /******************************************************************************/
 
@@ -295,7 +293,7 @@ msg_chs_overflow:   .asciz "CHS read overflow"
 signature:          .short 0xAA55
 	. = 0x200
 init_kernel:
-    prints(osname)
+    prints          (osname)
     jmp halting
 /******************************************************************************/
 
