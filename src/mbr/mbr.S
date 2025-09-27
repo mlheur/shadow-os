@@ -103,7 +103,7 @@ save_cylsec:    movw    %cx,                drvdata.cylsec
 /* Prepare for CHS Reading, set the one-time and first-time values in chs_cmd */
 target_krn:     movw    $KRN_SEGM,          %ax
                 movw    %ax,                %es
-seek_sector1:   movw    $0x0400,            chs_cmd.cylsec
+seek_sector1:   movw    $1,                 chs_cmd.cylsec
 
 
 /* Start reading the boot device, assume all registers are garbage, load from struct */
@@ -139,13 +139,13 @@ incr_buff_ptr:  addw    $0x20,              %bx /* increment the segment pointer
                 subw    $(KRN_SEGM+0x1000), %bx /* check if the buffer pointer has totally advanced by 64k */
                 jz      return              /* init_bootdev is finished when 64KiB have been read */
 increment_shc:  movw    drvdata.cylsec,     %bx /* get the metric against which we'll test limits */
-                andw    $0xC0FF,            %bx /* filter the 6-bit sector portion */
+                andw    $0x003F,            %bx /* filter the 6-bit sector portion */
                 movw    chs_cmd.cylsec,     %ax /* get the 16-bit mangled cylsec address that was just read from */
-                andw    $0xC0FF,            %ax /* filter the 6-bit sector portion */
+                andw    $0x003F,            %ax /* filter the 6-bit sector portion */
                 subw    %ax,                %bx /* check if the sector limit is reached ... */
                 jz      wrap_head           /* ... and wrap the head if it is ... */
                 movw    chs_cmd.cylsec,     %ax /* ... else, revert the unfiltered cylsec */
-                addw    $0x0400,            %ax /* advance the sector for real this time ... */
+                addw    $0x0001,            %ax /* advance the sector for real this time ... */
                 movw    %ax,                chs_cmd.cylsec /* ... and save it back */
 head_wrapped:   xorb    %ah,                %ah /* prevent side effect of upcoming byte decrement */
                 movb    chs_cmd.readlen,    %al /* get back the qty of sectors read */
@@ -163,32 +163,26 @@ wrap_head:      movb    drvdata.head,       %bl /* get the metric against which 
                 addb    $1,                 %al /* else increment the head */
                 movb    %al,                chs_cmd.head /* and save it back */
                 movw    chs_cmd.cylsec,     %ax /* pull up the mangled cylsec ... */
-                andw    $0xC0FF,            %ax /* ... so we can keep the cylinder bits ... */
-                addw    $0x0400,            %ax /* ... and set the sector back to 1 */
+                andw    $0xFFC0,            %ax /* ... so we can keep the cylinder bits ... */
+                addw    $0x0001,            %ax /* ... and set the sector back to 1 */
                 movw    %ax,                chs_cmd.cylsec /* save that back */
                 jmp     head_wrapped        /* and we're done */
 /******************************************************************************/
 wrap_cylinder:  movb    $0,                 chs_cmd.head /* reset head to zero */
                 movw    chs_cmd.cylsec,     %ax /* get the current mangled address */
-                andw    $0xC0FF,            %ax /* filter out sectors to zero */
+                andw    $0xFFC0,            %ax /* filter out sectors to zero */
                 movw    drvdata.cylsec,     %bx /* get the metric against which we'll test the limits */
-                andw    $0xC0FF,            %bx /* filter out sectors to zero */
+                andw    $0xFFC0,            %bx /* filter out sectors to zero */
                 subw    %ax,                %bx /* check if the limit is reached */
                 jz      chs_overflow        /* unable to read past end of disk */
-                rorb    $2,                 %al /* mangled cylsec sits in ax */
+                rolb    $2,                 %al /* mangled cylsec sits in ax, filtered in the cyl bits */
                 xchgb   %al,                %ah /* put the cylinder portion as LSB */
-                addb    $1,                 %ax /* increment the cylinder */
+                addw    $1,                 %ax /* increment the cylinder */
                 andw    $0x03FF,            %ax /* filter any overflow */
-
-TODO: pick up work here
-
-                addb    $1
-
-
-
-
+                xchgb   %ah,                %al /* remangle the cylsec */
+                rorb    $2,                 %al /* suffle zeroed sectors to lsb */
+                addb    $0x0001,            %al /* seek sector 1 */
                 movw    %ax,                chs_cmd.cylsec /* set cylsec for the next read */
-                movb    $0,                 chs_cmd.head /* reset to head 0 */
                 jmp     head_wrapped        /* and we're done */
 /******************************************************************************/
 load_failed:    movb    %ah,                %bl /* save ah for later by altty */

@@ -18,4 +18,3 @@ clean :
 install : bin/mbr
 	dd if=bin/mbr of=${IMAGE} bs=512 count=2
 	dd if=/usr/share/pci.ids of=${IMAGE} bs=512 seek=2 count=126
-	hexdump -C ${IMAGE}
