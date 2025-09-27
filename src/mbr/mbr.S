@@ -23,8 +23,8 @@
 
 
 #define prints(s)   movw $(s), %si; call strout /* clobbers ax and si */
-#define printb(b)   movw (b), %ax; call byte_ascii_out /* clobbers ah */
-#define printw(w)   movw (b), %ax; call word_ascii_out /* clobbers ah */
+#define printb(b)   movw b, %ax; call byte_ascii_out /* clobbers ah */
+#define printw(w)   movw w, %ax; call word_ascii_out /* clobbers ah */
 
 
 #define READLEN     $0x01
@@ -132,7 +132,7 @@ chs_read:       movb    bootdev,            %dl /* whatever device we booted fro
                 xorw    %bx,                %bx /* es was managed so bx can always be zero */
                 movb    READLEN,            %al /* how many sectors we'd like to read */
                 movb    $0x02,              %ah /* CHS "read" command */
-                call    debug_chs
+                call    debug_regs
                 int     $0x13               /* perform the read */
 errchecking:    jc      load_failed         /* handle any errors */
 
@@ -231,27 +231,30 @@ halt:           sti
 /******************************************************************************/
 
 
-dbgmsg:    .ascii "ES:"
-dbgES:     .ascii "____ DX:"
-dbgDX:     .ascii "____ CX:"
-dbgCX:     .ascii "____ BX:"
-dbgBX:     .ascii "____ AX:"
-dbgAX:     .asciz "____"
+dbgES:     .asciz "ES:"
+dbgDX:     .asciz " DX:"
+dbgCX:     .asciz " CX:"
+dbgBX:     .asciz " BX:"
+dbgAX:     .asciz " AX:"
 
-debug_chs:      pushw   %ax             /* used for just about everything */
-                pushw   %cx             /* loop counter for nibble operations */
-                movw    $3,%cx          /* four nibbles per word */
-                movw    %es,%ax         /* debug the es register first */
-1:              shr     $4,%ax          /
-                call    nibble_to_ascii
-                movb    $al,dbgES+
-                subb    $4,%cx
-                jnz     $1b
-                movb    %al,dbgES
-                prints  (dbgmsg)
-                popw    %cx
+
+debug_regs:     pushw   %ax
+                pushw   %ax
+                prints  (dbgES)
+                printw  (%es)
+                prints  (dbgDX)
+                printw  (%dx)
+                prints  (dbgCX)
+                printw  (%cx)
+                prints  (dbgBX)
+                printw  (%bx)
+                prints  (dbgAX)
+                popw    %ax
+                call    word_ascii_out
+                prints  (crlf)
                 popw    %ax
                 ret
+
 
 /*******************************************************************************
  * When data is copied from disk to ram at krn_segm, the following tty-output
