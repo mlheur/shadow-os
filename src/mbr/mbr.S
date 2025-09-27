@@ -34,7 +34,6 @@
 	.code16
     .globl  _start
 _start:         lcall   $MBR_SEGM,          $init_bootdev /* set cs register */
-_identity:      prints(osname)
 _handover:      lcall   $KRN_SEGM,          $init_kernel
 return:         ret                         /* also used for indirect "Jcc return" */
 /******************************************************************************/
@@ -102,6 +101,7 @@ inquire_geom:   xorw    %ax,                %ax /* get a zero */
 save_heads:     movb    %dh,                drvdata.max_head /* save heads */
 unmung_cylsec:  swapb(ch,cl)                /* the sector address is stored between mangled bits of the cylinder address ... */
                 rolb    $2,                 %ch /* ... these two lines unmangles those to a 16-bit linear address */
+                rolw    $6,                 %cx /* finally put sectors LSB of cylinders */
 save_cylsec:    movw    %cx,                drvdata.cylsec /* save the results */
 
 
@@ -110,7 +110,11 @@ target_krn:     movw    $KRN_SEGM,          %ax
                 movw    %ax,                %es
 read_bootdev:   movb    bootdev,            %al
                 movb    %al,                chs_cmd.device
-seek_sector1:   movw    $0x0400,            chs_cmd.cylsec /* head was done in mzset */
+seek_sector1:   movw    $1,                 chs_cmd.cylsec /* head zero */
+
+
+/* ToDo: Refactor the below to use cylsec in mangled form all the time.
+ * Pretty simple to do: the filter on bx and ax can be shifted, the add $1 can be add $000X0000b whatever; and wrap_cylinder might be more complicated ... */
 
 
 /* Start reading the boot device, assume all registers are garbage, load from struct */
@@ -130,8 +134,9 @@ chs_read:       xorw    %bx,                %bx /* es was managed so bx can alwa
                 movb    chs_cmd.device,     %dl /* whatever device we booted from */
                 movb    chs_cmd.head,       %dh /* address the proper head */
                 movw    chs_cmd.cylsec,     %cx /* linear cylsec value into cx */
+                rorw    $6,                 %cx /* put sectors MSB of cylinders */
+                rorb    $2,                 %ch /* and sectors are LSB in cl */
                 swapb(ch,cl)                /* mangle it so cylinder is in ch */
-                rorb    $2,                 %cl /* and sectors are LSB in cl */
 read_amount:    movw    $0x0201,            %ax /* CHS "read" function, 1 sector at a time (for now) */
 call_int_13:    int     $0x13               /* perform the read */
 errchecking:    jc      load_failed         /* handle any errors */
@@ -147,61 +152,54 @@ incr_buff_ptr:  addw    $0x20,              %bx /* increment the segment pointer
                 jnz     incr_buff_ptr       /* non-zero counter means we have to move the buffer pointer some more */
                 subw    $(KRN_SEGM+0x100),  %bx /* check if the buffer pointer has totally advanced by 64k */
                 jz      return              /* init_bootdev is finished when 64KiB have been read */
-increment_chs:  movw    drvdata.cylsec,     %bx /* get the metric against which we'll test limits */
-                andw    $0x03FF,            %bx /* filter the 10-bit cylinder portion */
+increment_shc:  movw    drvdata.cylsec,     %bx /* get the metric against which we'll test limits */
+                andw    $0x003F,            %bx /* filter the 6-bit sector portion */
                 movw    chs_cmd.cylsec,     %ax /* get the 16-bit linear cylsec address that was just read from */
-                andw    $0x03FF,            %ax /* filter the 10-bit cylinder portion */
-                testw   %ax,                %bx /* check if the cylinder limit is reached ... */
+                andw    $0x003F,            %ax /* filter the 6-bit sector portion */
+                testw   %ax,                %bx /* check if the sector limit is reached ... */
                 je      wrap_head           /* ... and wrap the head if it is ... */
                 movw    chs_cmd.cylsec,     %ax /* ... else, revert the unfiltered cylsec */
-                addw    $1,                 %ax /* advance the cylinder for real this time ... */
+                addw    $1,                 %ax /* advance the sector for real this time ... */
                 movw    %ax,                chs_cmd.cylsec /* ... and save it back */
 head_wrapped:   xorb    %ah,                %ah /* prevent side effect of upcoming byte decrement */
                 movb    chs_cmd.readlen,    %al /* get back the qty of sectors read */
                 subb    $1,                 %al /* decrement it, when it hits zero ... */
                 jz      chs_read            /* ... go read the next sector */
                 movb    %al,                chs_cmd.readlen
-                jmp     increment_chs       /* else advance CHS again */
+                jmp     increment_shc       /* else advance CHS again */
 /******************************************************************************/
 wrap_head:      movb    drvdata.max_head,   %bl /* get the metric against which we'll test limits */
                 movb    chs_cmd.head,       %al /* get the current value */
                 xorb    %bh,                %bh /* to prevent side effects of 8-bit tests */
                 xorb    %ah,                %ah /* ditto */
                 subb    %al,                %bl /* if the limit is reached ... */
-                jz      wrap_sector         /* ... wrap the sector instead, it will reset the head and cylinder */
+                jz      wrap_cylinder       /* ... wrap the cylinder instead, it will reset the head and sector */
                 addb    $1,                 %al /* else increment the head */
                 movb    %al,                chs_cmd.head /* and save it back */
                 movw    chs_cmd.cylsec,     %ax /* restore the saved linear cylsec */
-                andw    $0xFC00,            %ax /* keep just the sector bits */
-                movw    %ax,                chs_cmd.cylsec /* save just the sector */
+                andw    $0xFFC0,            %ax /* keep just the cylinder bits */
+                movw    %ax,                chs_cmd.cylsec /* save just the cylinder */
                 jmp     head_wrapped        /* and we're done */
 /******************************************************************************/
-wrap_sector:    movb    $0,                 chs_cmd.head /* reset head to zero */
+wrap_cylinder:  movb    $0,                 chs_cmd.head /* reset head to zero */
                 movw    chs_cmd.cylsec,     %ax /* get the current linear address */
-                andw    $0xFC00,            %ax /* filter out to cylinder zero */
-                addw    $0x0400,            %ax /* add 1 to the sector count */
-                jc      chs_overflow        /* cylinder wrapped, head wrapped, sector is wrapping: nothing more to read */
-                movw    %ax,                chs_cmd.cylsec /* else save back the new sector & zeroed cylinder */
+                andw    $0xFFC0,            %ax /* filter out to sectors zero */
+                movw    drvdata.cylsec,     %bx /* get the metric against which we'll test the limits */
+                andw    $0xFFC0,            %ax /* filter out to sectors zero */
+                testw   %bx,                %ax /* check if the limit is reached */
+                je      chs_overflow        /* unable to read past end of disk */
+                addw    $0x0041,            %ax /* add one to each of the cylinder and sector */
+                movw    %ax,                chs_cmd.cylsec /* set cylsec for the next read */
                 jmp     head_wrapped        /* and we're done */
 /******************************************************************************/
-load_failed_0C: movb    $'C',               %al
-                call    altty
-                jmp     increment_chs
-/******************************************************************************/
-load_failed:    movb    %ah,                %bl
-                xorw    %ax,                %ax
-                movb    %bl,                %al
-                subb    $0x0C,              %al
-        /* TODO: if we got here from a simple chs cylinder increment, wrap the head */
-        /* Otherwise, wrap the sectore */
-                jz      load_failed_0C
+load_failed:    movb    %ah,                %bl /* save ah for later by altty */
                 prints(msg_chs_failed)
                 movb    %bl,                %al
                 call    byte_ascii_out
                 prints(crlf)                
 /*******************************************************************************
  * End MBR program */
-                prints(msg_halting)
+halting:        prints(msg_halting)
 halt:           sti
                 hlt
                 jmp     halt
@@ -305,6 +303,7 @@ signature:          .short 0xAA55
 	. = 0x200
 init_kernel:
     prints(osname)
+    jmp halting
 /******************************************************************************/
 
 
