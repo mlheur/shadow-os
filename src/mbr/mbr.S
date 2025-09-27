@@ -150,7 +150,7 @@ incr_buff_ptr:  addw    $0x20,              %bx /* increment the segment pointer
                 movw    %bx,                %es /* and store it in the segment register */
                 subb    $1,                 %al /* decrement the sectors_read counter */
                 jnz     incr_buff_ptr       /* non-zero counter means we have to move the buffer pointer some more */
-                subw    $(KRN_SEGM+0x100),  %bx /* check if the buffer pointer has totally advanced by 64k */
+                subw    $(KRN_SEGM+0x1000), %bx /* check if the buffer pointer has totally advanced by 64k */
                 jz      return              /* init_bootdev is finished when 64KiB have been read */
 increment_shc:  movw    drvdata.cylsec,     %bx /* get the metric against which we'll test limits */
                 andw    $0x003F,            %bx /* filter the 6-bit sector portion */
