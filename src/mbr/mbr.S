@@ -23,7 +23,9 @@
 
 
 #define prints(s)   movw $(s), %si; call strout /* clobbers ax and si */
-#define printb(b)   movw (b), %ax; call altty; xorb %ah,%ah /* clobbers ah */
+#define printb(b)   movw (b), %ax; call byte_ascii_out /* clobbers ah */
+#define printw(w)   movw (b), %ax; call word_ascii_out /* clobbers ah */
+
 
 #define READLEN     $0x01
 
@@ -124,13 +126,13 @@ seek_sector1:   movw    $1,                 chs_cmd.cylsec /* Cyl:0, Head:0, Sec
  *	DL = drive number (bit 7 set for hard disk)
  *	ES:BX -> data buffer
  ******************************************************************************/
-chs_read:       call    print_chs_read_inputs
-                movb    bootdev,            %dl /* whatever device we booted from */
+chs_read:       movb    bootdev,            %dl /* whatever device we booted from */
                 movb    chs_cmd.head,       %dh /* address the proper head */
                 movw    chs_cmd.cylsec,     %cx /* mangled cylsec value into cx */
                 xorw    %bx,                %bx /* es was managed so bx can always be zero */
                 movb    READLEN,            %al /* how many sectors we'd like to read */
                 movb    $0x02,              %ah /* CHS "read" command */
+                call    debug_chs
                 int     $0x13               /* perform the read */
 errchecking:    jc      load_failed         /* handle any errors */
 
@@ -229,8 +231,27 @@ halt:           sti
 /******************************************************************************/
 
 
+dbgmsg:    .ascii "ES:"
+dbgES:     .ascii "____ DX:"
+dbgDX:     .ascii "____ CX:"
+dbgCX:     .ascii "____ BX:"
+dbgBX:     .ascii "____ AX:"
+dbgAX:     .asciz "____"
 
-
+debug_chs:      pushw   %ax             /* used for just about everything */
+                pushw   %cx             /* loop counter for nibble operations */
+                movw    $3,%cx          /* four nibbles per word */
+                movw    %es,%ax         /* debug the es register first */
+1:              shr     $4,%ax          /
+                call    nibble_to_ascii
+                movb    $al,dbgES+
+                subb    $4,%cx
+                jnz     $1b
+                movb    %al,dbgES
+                prints  (dbgmsg)
+                popw    %cx
+                popw    %ax
+                ret
 
 /*******************************************************************************
  * When data is copied from disk to ram at krn_segm, the following tty-output
@@ -265,13 +286,16 @@ _byte_ascii_out:
     popw    %dx                                     /* restore */
     ret
 /*******************************************************************************
- * Function: nibble_to_ascii_out */
-nibble_to_ascii_out:
+ * Function: nibble_to_ascii */
+nibble_to_ascii:
     andw    $0x000F,                        %ax     /* filter the nibble */
     addb    $0x90,                          %al     /* setup for decmial arithmatic, int2hex */
     daa                                             /* crank 1, int2hex */
     adc     $0x40,                          %al     /* reset for decmial arithmatic, int2hex */
     daa                                             /* crank 2, int2hex */
+    ret
+nibble_to_ascii_out:
+    call    nibble_to_ascii
     /* int2hex complete, fall through to altty */
 /******************************************************************************/
 altty:
@@ -305,11 +329,11 @@ strout:     lodsb                           /* copy the character to al, increme
 /*******************************************************************************
  * Static Data */
 /******************************************************************************/
-osname:             .ascii "shadow-os"
+osname:             .ascii "[s]"
 crlf:               .asciz "\r\n"
-msg_halting:        .asciz "halting"
-msg_chs_failed:     .asciz "CHS read failed: %ah=0x"
-msg_chs_overflow:   .asciz "CHS read overflow"
+msg_halting:        .asciz "fin"
+msg_chs_failed:     .asciz "CHS:AH="
+msg_chs_overflow:   .asciz "OF"
 readlen:            .byte   1 /* valid values: 1-63 inclusive */
 
 
