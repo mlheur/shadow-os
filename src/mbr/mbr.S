@@ -29,6 +29,8 @@
 
 #define READLEN     $0x01
 
+#define DEBUG
+
 
 /*******************************************************************************
  * MBR */
@@ -132,7 +134,9 @@ chs_read:       movb    bootdev,            %dl /* whatever device we booted fro
                 xorw    %bx,                %bx /* es was managed so bx can always be zero */
                 movb    READLEN,            %al /* how many sectors we'd like to read */
                 movb    $0x02,              %ah /* CHS "read" command */
+#ifdef DEBUG
                 call    debug_regs
+#endif
                 int     $0x13               /* perform the read */
 errchecking:    jc      load_failed         /* handle any errors */
 
@@ -141,11 +145,11 @@ errchecking:    jc      load_failed         /* handle any errors */
 adv_buf_ptr:    movb    %al,                chs_cmd.readlen /* save sectors_read counter for reuse */
                 movw    %es,                %bx /* we need to do arithmatic on es, copy to bx */
                 movw    $0x20,              %ax /* get a 512-byte segment muliplicand */
-                mull    chs_cmd.readlen     /* use the sectors-read counter as the other multiplicand */
+                mulb    chs_cmd.readlen     /* use the sectors-read counter as the other multiplicand */
                 addw    %ax,                %bx /* advance bx by the results */
                 movw    %bx,                %es /* and save it back to es; bx still contains the new es value */
 check_complete: subw    $(KRN_SEGM+0x1000), %bx /* check if the buffer pointer has totally advanced by 64k */
-                jna     return              /* MBR is finished when >= 64KiB have been read */
+                jnb     return              /* MBR is finished when >= 64KiB have been read */
 /* this is the only legitimate exit point for MBR, all other exits are due to failure and should jump to halt(ing) */
 
 
@@ -159,7 +163,7 @@ wrap_sector:    movw    chs_cmd.cylsec,     %ax /* get the 16-bit mangled cylsec
                 movw    drvdata.cylsec,     %cx /* get the last sector valid sector ID */
                 andw    $0x003F,            %cx /* filter just the 6-bit sector portion */
                 subw    %ax,                %cx /* compare the calculated sector ID against the limit, destroys cx */
-                ja      wrap_head           /* if ax is bigger than cx then the limit was exceeded, wrap to the next head */
+                jna     wrap_head           /* if ax is bigger than cx then the limit was exceeded, wrap to the next head */
                 movw    %ax,                chs_cmd.cylsec /* else the calculated sector ID is valid, commit it */
                 jmp     chs_read            /* go read the new sector(s) */
 
@@ -231,36 +235,34 @@ halt:           sti
 /******************************************************************************/
 
 
+/*******************************************************************************
+ * When data is copied from disk to ram at krn_segm, the following routines
+ * can be available as kernel calls with cs:=KRN_SEGM
+ ******************************************************************************/
+
+#ifdef DEBUG
 dbgES:     .asciz "ES:"
 dbgDX:     .asciz " DX:"
 dbgCX:     .asciz " CX:"
 dbgBX:     .asciz " BX:"
 dbgAX:     .asciz " AX:"
-
-
 debug_regs:     pushw   %ax
                 pushw   %ax
                 prints  (dbgES)
                 printw  (%es)
+                prints  (dbgBX)
+                printw  (%bx)
                 prints  (dbgDX)
                 printw  (%dx)
                 prints  (dbgCX)
                 printw  (%cx)
-                prints  (dbgBX)
-                printw  (%bx)
                 prints  (dbgAX)
                 popw    %ax
                 call    word_ascii_out
                 prints  (crlf)
                 popw    %ax
                 ret
-
-
-/*******************************************************************************
- * When data is copied from disk to ram at krn_segm, the following tty-output
- * routines can be available as kernel calls with cs:=KRN_SEGM
- ******************************************************************************/
-
+#endif
 
 /*******************************************************************************
  * Function: byte_ascii_out */
