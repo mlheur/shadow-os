@@ -163,7 +163,7 @@ wrap_sector:    movw    chs_cmd.cylsec,     %ax /* get the 16-bit mangled cylsec
                 movw    drvdata.cylsec,     %cx /* get the last sector valid sector ID */
                 andw    $0x003F,            %cx /* filter just the 6-bit sector portion */
                 subw    %ax,                %cx /* compare the calculated sector ID against the limit, destroys cx */
-                jna     wrap_head           /* if ax is bigger than cx then the limit was exceeded, wrap to the next head */
+                jb      wrap_head           /* if ax is bigger than cx then the limit was exceeded, wrap to the next head */
                 movw    %ax,                chs_cmd.cylsec /* else the calculated sector ID is valid, commit it */
                 jmp     chs_read            /* go read the new sector(s) */
 
@@ -225,6 +225,8 @@ load_failed:    movb    %ah,                %bl /* save ah against later clobber
                 movb    %bl,                %al /* bring back ao print its value */
                 call    byte_ascii_out
                 prints  (crlf)
+                subb    $0x0C,              %bl /* check if it was an ah=0C error */
+                jz      wrap_sector
 /******************************************************************************/
 halting:        prints  (msg_halting)
 halt:           sti
