@@ -22,7 +22,7 @@
 /******************************************************************************/
 
 
-#define prints(s)   movw $(s), %si; call strout /* clobbers ax and si */
+#define prints(s)   movw $s, %si; call strout /* clobbers ax and si */
 #define printb(b)   movw b, %ax; call byte_ascii_out /* clobbers ah */
 #define printw(w)   movw w, %ax; call word_ascii_out /* clobbers ah */
 
@@ -349,9 +349,10 @@ readlen:            .byte   1 /* valid values: 1-63 inclusive */
 	. = 0x1fe
 signature:          .short 0xAA55
 	. = 0x200
-KRN: /* this label is a handy reference when the MBR hands off to the kernel */
-    prints          (osname) /* stub, will be overwritten post-assembly with a real kernel */
-    jmp halting
+KRN:    movw        %cs,%ax
+        movw        %ax,%ds
+        prints      (osname) /* stub, will be overwritten post-assembly with a real kernel */
+FIN:    jmp         halting
 /******************************************************************************/
 
 
