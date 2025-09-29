@@ -1,3 +1,5 @@
+	.code16
+
 /*******************************************************************************
  * BIOS hands over to MBR:
  * The only things that are (nearly) certain are that
@@ -34,19 +36,16 @@
 
 #define READLEN     $53
 
-#define DEBUG
 
 
 /*******************************************************************************
  * MBR */
 	.text
-	.code16
     .globl  _start
 _start:         lcall   $MBR_SEGM,          $MBR
 _handover:      lcall   $KRN_SEGM,          $KRN
 return:         ret     /* also used for indirect "Jcc return" */
 /******************************************************************************/
-
 
 /*******************************************************************************
  * Most HDD MBRs relocate themselves to nearby, maybe cs:=0x07A0 and then load a
@@ -226,15 +225,12 @@ chs_overflow:   prints  (msg_chs_overflow)
                 jmp     halt
 /******************************************************************************/
 chs_failed:     movw    %ax,                %bx
+                subb    $0x0C,              %ah
+                jz      adv_buf_ptr
                 prints  (msg_chs_failed)
                 movw    %bx,                %ax
                 call    word_ascii_out
                 prints  (crlf)
-                movzbw  %bh,                %ax
-                subw    $0x0C,              %ax
-                jnz     halting
-                movzbw  %bl,                %ax
-                jmp     adv_buf_ptr
 /******************************************************************************/
 halting:        prints  (msg_halting)
 halt:           sti
@@ -252,11 +248,11 @@ halt:           sti
 
 
 #ifdef DEBUG
-dbgES:     .asciz "ES:"
-dbgDX:     .asciz " DX:"
-dbgCX:     .asciz " CX:"
-dbgBX:     .asciz " BX:"
-dbgAX:     .asciz " AX:"
+dbgES:          .asciz "ES:"
+dbgDX:          .asciz " DX:"
+dbgCX:          .asciz " CX:"
+dbgBX:          .asciz " BX:"
+dbgAX:          .asciz " AX:"
 debug_regs:     pushw   %ax
                 pushw   %ax
                 prints  (dbgES)
@@ -278,55 +274,48 @@ debug_regs:     pushw   %ax
 
 /*******************************************************************************
  * Function: byte_ascii_out */
-byte_ascii_out:
-    pushw   %dx                                     /* save */
-    movw    %ax,                            %dx     /* save */
-    jmp     _byte_ascii_out
+byte_ascii_out: pushw   %dx                 /* save */
+                movw    %ax,                %dx     /* save */
+                jmp     1f
 /*******************************************************************************
  * Function: word_ascii_out
  * Purpose: convert two-byte into to ascii, then send it out */
-word_ascii_out:
-    pushw   %dx                                     /* save */
-    movw    %ax,                            %dx     /* save */
-    shrw    $12,                            %ax     /* bits 0xF000 */
-    call    nibble_to_ascii_out
-    movw    %dx,                            %ax     /* restore */
-    shrw    $8,                             %ax     /* bits 0x0F00 */
-    call    nibble_to_ascii_out
-    movw    %dx,                            %ax     /* restore */
-_byte_ascii_out:
-    shr     $4,                             %al     /* bits 0x00F0 */
-    call    nibble_to_ascii_out
-    movw    %dx,                            %ax     /* bits 0x000F */
-    call    nibble_to_ascii_out
-    movw    %dx,                            %ax     /* restore */
-    popw    %dx                                     /* restore */
-    ret
+word_ascii_out: pushw   %dx                         /* save */
+                movw    %ax,                %dx     /* save */
+                shrw    $12,                %ax     /* bits 0xF000 */
+                call    nibble_ascii
+                movw    %dx,                %ax     /* restore */
+                shrw    $8,                 %ax     /* bits 0x0F00 */
+                call    nibble_ascii
+                movw    %dx,                %ax     /* restore */
+1:              shr     $4,                 %al     /* bits 0x00F0 */
+                call    nibble_ascii
+                movw    %dx,                %ax     /* bits 0x000F */
+                call    nibble_ascii
+                movw    %dx,                %ax     /* restore */
+                popw    %dx                         /* restore */
+                ret
 /*******************************************************************************
  * Function: nibble_to_ascii */
-nibble_to_ascii:
-    andw    $0x000F,                        %ax     /* filter the nibble */
-    addb    $0x90,                          %al     /* setup for decmial arithmatic, int2hex */
-    daa                                             /* crank 1, int2hex */
-    adc     $0x40,                          %al     /* reset for decmial arithmatic, int2hex */
-    daa                                             /* crank 2, int2hex */
-    ret
-nibble_to_ascii_out:
-    call    nibble_to_ascii
+nibble_ascii:   andw    $0x000F,           %ax     /* filter the nibble */
+                addb    $0x90,             %al     /* setup for decmial arithmatic, int2hex */
+                daa                                /* crank 1, int2hex */
+                adc     $0x40,             %al     /* reset for decmial arithmatic, int2hex */
+                daa                                /* crank 2, int2hex */
     /* int2hex complete, fall through to altty */
 /******************************************************************************/
 altty:
-outb_com1:  pushw   %dx
-            xorw    %dx,                    %dx /* Serial Port 0 */
-            movb    $0x01,                  %ah /* "send" command */
-            int     $0x14
-            popw    %dx
-outb_tty:   pushw   %bx
-            movw    $0x0001,                %bx /* bh=page,bl=fg_colour */
-            movb    $0x0e,                  %ah /* "tty out" VGA command */
-            int     $0x10
-            popw    %bx
-altty_end:  ret
+outb_com1:      pushw   %dx
+                xorw    %dx,               %dx /* Serial Port 0 */
+                movb    $0x01,             %ah /* "send" command */
+                int     $0x14
+                popw    %dx
+outb_tty:       pushw   %bx
+                movw    $0x0001,           %bx /* bh=page,bl=fg_colour */
+                movb    $0x0e,             %ah /* "tty out" VGA command */
+                int     $0x10
+                popw    %bx
+altty_end:      ret
 /******************************************************************************/
 
 
@@ -335,11 +324,11 @@ altty_end:  ret
  * Purpose: write a null-terminated string through altty
  * Parameters: ds:si the address of the first character
  * Outputs: None. */
-strout:     lodsb                           /* copy the character to al, increment si */
-            testb   %al,                    %al /* test if it is the null terminator */
-            jz      return
-            call    altty
-            jmp     strout
+strout:         lodsb                      /* copy the character to al, increment si */
+                testb   %al,               %al /* test if it is the null terminator */
+                jz      return
+                call    altty
+                jmp     strout
 /******************************************************************************/
 
 
@@ -351,7 +340,6 @@ crlf:               .asciz "\r\n"
 msg_halting:        .asciz "fin"
 msg_chs_failed:     .asciz "CHS:AX="
 msg_chs_overflow:   .asciz "OF"
-readlen:            .byte   1 /* valid values: 1-63 inclusive */
 
 
 /*******************************************************************************
