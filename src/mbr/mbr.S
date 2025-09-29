@@ -27,7 +27,7 @@
 #define printw(w)   movw w, %ax; call word_ascii_out /* clobbers ah */
 
 
-#define READLEN     $0x01
+#define READLEN     $0x7f
 
 #define DEBUG
 
@@ -138,7 +138,12 @@ chs_read:       movb    bootdev,            %dl /* whatever device we booted fro
                 call    debug_regs
 #endif
                 int     $0x13               /* perform the read */
-errchecking:    jc      load_failed         /* handle any errors */
+#ifdef DEBUG
+                pushf
+                call    debug_regs
+                popf
+#endif
+errchecking:    jc      chs_failed          /* handle any errors */
 
 
 /* ah=0, al=sectors_read, the read was successful, advance the buffer pointer */
@@ -159,7 +164,7 @@ wrap_sector:    movw    chs_cmd.cylsec,     %ax /* get the 16-bit mangled cylsec
                 andw    $0x003F,            %ax /* filter the 6-bit sector portion */
                 movzbw  chs_cmd.readlen,    %bx /* recall how many sectors were successfully read */
                 addw    %bx,                %ax /* advance the sector pointer that much ... */
-/* we advanced sectors by 1 **OR MORE**, check if we exceeded the sector limit, dx contains that value */
+/* we advanced sectors by 1 **OR MORE**, check if we exceeded the sector limit */
                 movw    drvdata.cylsec,     %cx /* get the last sector valid sector ID */
                 andw    $0x003F,            %cx /* filter just the 6-bit sector portion */
                 subw    %ax,                %cx /* compare the calculated sector ID against the limit, destroys cx */
@@ -169,17 +174,14 @@ wrap_sector:    movw    chs_cmd.cylsec,     %ax /* get the 16-bit mangled cylsec
 
 
 /******************************************************************************/
-wrap_head:      movb    drvdata.head,       %bl /* get the metric against which we'll test limits */
-                movb    chs_cmd.head,       %al /* get the current value */
-                xorb    %bh,                %bh /* to prevent side effects of 8-bit tests */
-                xorb    %ah,                %ah /* ditto */
-                subb    %al,                %bl /* if the limit is reached ... */
+wrap_head:      movzbw  drvdata.head,       %bx /* get the metric against which we'll test limits */
+                movzbw  chs_cmd.head,       %ax /* get the current value */
+                subw    %ax,                %bx /* if the limit is reached ... */
                 jz      wrap_cylinder       /* ... wrap the cylinder instead, it will reset the head and sector */
                 addb    $1,                 %al /* else increment the head */
                 movb    %al,                chs_cmd.head /* and save it back */
                 movw    chs_cmd.cylsec,     %ax /* pull up the mangled cylsec ... */
                 andw    $0xFFC0,            %ax /* ... so we can keep the cylinder bits ... */
-                addw    $0x0001,            %ax /* ... and set the sector back to 1 */
 /* this assumes we previously read _the last_ sector on the prior head, that's a bad assumption */
 /*
  * Let's say we're reading 5 sectors at a time for no good reason.  It's likeley
@@ -191,10 +193,9 @@ wrap_head:      movb    drvdata.head,       %bl /* get the metric against which 
  *
  * We know how many sectors were attempted to be read, that's hard-coded in the ax assignment of chs_read before the interrupt invokation.
  */
-remaining_secs: movw    READLEN,            %bx /* recall how many sectors we wanted to read */
-                subb    chs_cmd.readlen,    %bl /* subtract how many were actually read, we're left with either 2 or 0 in bx */
-                addb    %bl,                %al /* add that many more to the sector ID */
-                movw    %ax,                chs_cmd.cylsec /* finally save the sector ID back to the CHS struct */
+remaining_secs: negw    %cx                 /* we have to further advance the sectors by this much */
+                addb    %cl,                %al /* add that many more to the sector ID */
+                movb    %al,                chs_cmd.cylsec /* finally save the sector ID back to the CHS struct */
                 jmp     chs_read            /* and go read it */
 
 
@@ -212,7 +213,6 @@ wrap_cylinder:  movb    $0,                 chs_cmd.head /* reset head to zero *
                 andw    $0x03FF,            %ax /* filter any overflow */
                 xchgb   %ah,                %al /* remangle the cylsec */
                 rorb    $2,                 %al /* suffle zeroed sectors to lsb */
-                addb    $0x0001,            %al /* seek sector 1 */
                 jmp     remaining_secs      /* and we're done */
 
 
@@ -220,13 +220,16 @@ wrap_cylinder:  movb    $0,                 chs_cmd.head /* reset head to zero *
 chs_overflow:   prints  (msg_chs_overflow)
                 jmp     halt
 /******************************************************************************/
-load_failed:    movb    %ah,                %bl /* save ah against later clobbering by altty */
+chs_failed:     movw    %ax,                %bx
                 prints  (msg_chs_failed)
-                movb    %bl,                %al /* bring back ao print its value */
-                call    byte_ascii_out
+                movw    %bx,                %ax
+                call    word_ascii_out
                 prints  (crlf)
-                subb    $0x0C,              %bl /* check if it was an ah=0C error */
-                jz      wrap_sector
+                movzbw  %bh,                %ax
+                subw    $0x0C,              %ax
+                jnz     halting
+                movzbw  %bl,                %ax
+                jmp     adv_buf_ptr
 /******************************************************************************/
 halting:        prints  (msg_halting)
 halt:           sti
@@ -339,7 +342,7 @@ strout:     lodsb                           /* copy the character to al, increme
 osname:             .ascii "[s]"
 crlf:               .asciz "\r\n"
 msg_halting:        .asciz "fin"
-msg_chs_failed:     .asciz "CHS:AH="
+msg_chs_failed:     .asciz "CHS:AX="
 msg_chs_overflow:   .asciz "OF"
 readlen:            .byte   1 /* valid values: 1-63 inclusive */
 
