@@ -22,12 +22,17 @@
 /******************************************************************************/
 
 
+/* TODO:
+ 1: set the readlen instead of hardcoding KRN_SEGM+0x1000
+ 2: prevent overreading when nearing the end
+ */
+
 #define prints(s)   movw $s, %si; call strout /* clobbers ax and si */
 #define printb(b)   movw b, %ax; call byte_ascii_out /* clobbers ah */
 #define printw(w)   movw w, %ax; call word_ascii_out /* clobbers ah */
 
 
-#define READLEN     $0x7f
+#define READLEN     $53
 
 #define DEBUG
 
