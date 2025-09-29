@@ -39,7 +39,7 @@
     .globl  _start
 _start:         lcall   $MBR_SEGM,          $MBR
 _handover:      lcall   $KRN_SEGM,          $KRN
-return:         ret                         /* also used for indirect "Jcc return" */
+return:         ret     /* also used for indirect "Jcc return" */
 /******************************************************************************/
 
 
@@ -245,6 +245,7 @@ halt:           sti
  * can be available as kernel calls with cs:=KRN_SEGM
  ******************************************************************************/
 
+
 #ifdef DEBUG
 dbgES:     .asciz "ES:"
 dbgDX:     .asciz " DX:"
@@ -268,6 +269,7 @@ debug_regs:     pushw   %ax
                 popw    %ax
                 ret
 #endif
+
 
 /*******************************************************************************
  * Function: byte_ascii_out */
@@ -357,9 +359,6 @@ KRN:    movw        %cs,%ax
         prints      (osname) /* stub, will be overwritten post-assembly with a real kernel */
 FIN:    jmp         halting
 /******************************************************************************/
-
-
-
 
 
 /******************************************************************************/
