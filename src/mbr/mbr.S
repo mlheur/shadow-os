@@ -42,7 +42,7 @@
 
 
 /******************************************************************************/
-#define DEBUG
+/* #define DEBUG
 /******************************************************************************/
 
 
@@ -53,13 +53,13 @@
     .code16
     .globl  _start
     . = 0
-_start:         ljmp    $MBR_SEGM,          $MBR /* Run the MBR, load bootdev */
+_start:         pusha
+                ljmp    $MBR_SEGM,          $MBR /* Run the MBR, load bootdev */
 _kernel:        pushw   $KRN_SEGM           /* Do the kernel a favour ... */
                 popw    %ds                 /* ... set the data segment */
-                ljmp    $KRN_SEGM,          $KRN /* Run the kernel */
-_kernel_return: pushw   $MBR_SEGM           /* Kernel came back ... */
-                popw    %ds                 /* ... revert the data segment */
-                jmp     halting             /* wait for CTRL+ALT+DELETE */
+                lcall    $KRN_SEGM,          $KRN /* Run the kernel */
+_kernel_return: popa
+                lret /* return to the BIOS, it will try the next boot device */
 /******************************************************************************/
 
 
@@ -80,7 +80,7 @@ bootdev:                .byte 0
 chs_cmd:
 chs_cmd.cylsec:         .word 1 /* seek sector 1 */
 chs_cmd.head:           .byte 0
-chs_cmd.readlen:        .byte 1 /* in & out, must be non-zero inbound */
+chs_cmd.readlen:        .byte 0x80 /* in & out, must be non-zero inbound */
 chs_cmd_sz = . - chs_cmd
 drvdata:
 drvdata.cylsec:         .word 0
