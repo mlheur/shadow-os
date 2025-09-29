@@ -42,7 +42,7 @@
 
 
 /******************************************************************************/
-/* #define DEBUG
+#define DEBUG
 /******************************************************************************/
 
 
@@ -132,7 +132,7 @@ print_byte:     pushw   %dx                         /* save */
                 movw    %ax,                %dx     /* save */
                 jmp     1f
 /******************************************************************************/
-print_word:pushw   %dx                         /* save */
+print_word:     pushw   %dx                         /* save */
                 movw    %ax,                %dx     /* save */
                 shrw    $12,                %ax     /* bits 0xF000 */
                 call    nibble_ascii
@@ -178,8 +178,8 @@ altty_end:      ret
  * Purpose: write a null-terminated string through altty
  * Parameters: ds:si the address of the first character
  * Outputs: None. */
-strout:         lodsb                      /* copy the character to al, increment si */
-                testb   %al,               %al /* test if it is the null terminator */
+strout:         lodsb                       /* copy the character to al, increment si */
+                testb   %al,                %al /* test if it is the null terminator */
                 jz      return
                 call    altty
                 jmp     strout
