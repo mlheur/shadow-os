@@ -30,7 +30,6 @@
  2: prevent overreading when nearing the end.  When ES is advanced far enough
     that ES + (512 * READLEN) it will exceed 64KiB, then reduce READLEN by some
     amount.
- 3: refactor print_word to use cx as the shift counter with another loop.
  ******************************************************************************/
 
 
@@ -80,7 +79,7 @@ bootdev:                .byte 0
 chs_cmd:
 chs_cmd.cylsec:         .word 1 /* seek sector 1 */
 chs_cmd.head:           .byte 0
-chs_cmd.readlen:        .byte 0x80 /* in & out, must be non-zero inbound */
+chs_cmd.readlen:        .byte 0x10 /* in & out, must be non-zero inbound */
 chs_cmd_sz = . - chs_cmd
 drvdata:
 drvdata.cylsec:         .word 0
@@ -128,24 +127,21 @@ debug_regs:     pushw   %ax
  * Function: print_byte
  * Function: print_word
  * Purpose: convert one or two bytes into to ascii, then send it out */
-print_byte:     pushw   %dx                         /* save */
-                movw    %ax,                %dx     /* save */
-                jmp     1f
+print_byte:     pushw   %cx                         /* use cx as a loop counter for nibble shifting */
+                movw    $4,                 %cx     /* shift four bits, then zero bits */
+                jmp     savedx
 /******************************************************************************/
-print_word:     pushw   %dx                         /* save */
-                movw    %ax,                %dx     /* save */
-                shrw    $12,                %ax     /* bits 0xF000 */
+print_word:     pushw   %cx                         /* use cx as a loop counter for nibble shifting */
+                movw    $12,                %cx     /* shift 12 bits, then 8, then 4, then zero */
+savedx:         pushw   %dx                         /* use dx as a backup of ax */
+                movw    %ax,                %dx     /* make the backup */
+nibble_loop:    shrw    %cl,                %ax     /* get the nibble */
                 call    nibble_ascii
-                movw    %dx,                %ax     /* restore */
-                shrw    $8,                 %ax     /* bits 0x0F00 */
-                call    nibble_ascii
-                movw    %dx,                %ax     /* restore */
-1:              shr     $4,                 %al     /* bits 0x00F0 */
-                call    nibble_ascii
-                movw    %dx,                %ax     /* bits 0x000F */
-                call    nibble_ascii
-                movw    %dx,                %ax     /* restore */
-                popw    %dx                         /* restore */
+                movw    %dx,                %ax     /* restore from backup */
+                subw    $4,                 %cx     /* decrement the loop counter */
+                jnc     nibble_loop                 /* repeat until the zeroth iteration is complete and the loop counter forced a carry */
+                popw    %dx                         /* restore dx, ax is already restored */
+                popw    %cx                         /* restore cx */
                 ret
 /******************************************************************************/
 
