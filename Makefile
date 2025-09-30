@@ -8,7 +8,7 @@ bin/mbr : objs/mbr.o
 	objcopy -O binary -j .text objs/mbr.o bin/mbr
 	objdump -M att -m i8086 -d objs/mbr.o > dumps/mbr.dump
 
-objs/mbr.o : src/mbr/mbr.S
+objs/mbr.o : src/mbr/*
 	test -d objs || mkdir objs
 	gcc -g -Wa,--32 -o objs/mbr.o -c src/mbr/mbr.S
 
