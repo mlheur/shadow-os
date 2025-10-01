@@ -1,1 +1,2 @@
-grep : src/mbr/mbr.S | awk -F : '{print $1}' | egrep -e '^[_a-zA-Z0-9]+$' | sed -e 's/^/            "break *0x7c00+/' -e 's/$/",/'
+grep : src/mbr/*.S /dev/null | awk -F : '{print $2}' | egrep -e '^[_a-zA-Z0-9]+$' 2>/dev/null | sed -e 's/^/            "break *0x7c00+/' -e 's/$/",/'
+grep : src/krn/*.S /dev/null | awk -F : '{print $2}' | egrep -e '^[_a-zA-Z0-9]+$' 2>/dev/null | sed -e 's/^/            "break *0x10000+/' -e 's/$/",/'
