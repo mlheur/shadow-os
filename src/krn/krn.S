@@ -1,14 +1,13 @@
-#define KRN_S
+#ifndef __KRN_S__
+#define __KRN_S__
 
 #include "prints.h"
 
-    .extern osname
-    .extern crlf
-    .extern strout
-
     .text
     .code16
-                prints      (osname)
+SHADOW_OS:      prints      (osname)
                 prints      (crlf)
 FIN:            popa /* MBR saved this from the BIOS, we got here via jumps */
 RETURN_TO_BIOS: lret /* qemu seems to like lret to return to the BIOS after it (l)calls MBR */
+
+#endif /* KRN_S */

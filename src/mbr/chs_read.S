@@ -171,15 +171,16 @@ load_registers: movb    chs_cmd.device,     %dl /* whatever device we booted fro
 #endif /* DEBUG */
 errchecking:    jc      chs_failed          /* handle any errors */
 /* ah=0, al=sectors_read, the read was successful, advance the buffer pointer */
-adv_buf_ptr:    movb    %al,                chs_cmd.readlen /* save sectors_read counter for reuse */
-                movw    %es,                %bx /* we need to do arithmatic on es, copy to bx */
+adv_buf_ptr:    movw    %es,                %bx /* we need to do arithmatic on es, copy to bx */
                 movw    $0x20,              %ax /* get a 512-byte segment muliplicand */
                 mulb    chs_cmd.readlen     /* use the sectors-read counter as the other multiplicand */
                 addw    %ax,                %bx /* advance bx by the results */
                 movw    %bx,                %es /* and save it back to es; bx still contains the new es value */
+check_partial:  testb   %al,                chs_cmd.readlen /* when the amount read differs from amount requested ... */
+                jne     was_partial         /* ... then we have nothing more to read */
 check_complete: subw    chs_cmd.readlimit,  %bx /* check if the buffer pointer has totally advanced by 64k */
                 jb      wrap_sector             /* when 64KiB have been read, the loader is finished */
-                popa
+was_partial:    popa
                 ret
 /* this is the only legitimate exit point for chs_read, all other exits are due
  * to failure and should jump to halt(ing) */

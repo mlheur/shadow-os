@@ -2,8 +2,15 @@
 #ifndef __MBR_S__
 #define __MBR_S__
 
+
+.global _start
+
+
 #define DEBUG
+#include "segments.h"
 #include "prints.h"
+
+
 
 /*******************************************************************************
  * BIOS hands over to MBR:
@@ -15,24 +22,9 @@
  * -- https://wiki.osdev.org/System_Initialization_(x86)
  ******************************************************************************/
 
-/******************************************************************************/
-/* Missing in the above, taken from : https://wiki.osdev.org/Memory_Map_(x86) */
-/* 0000:0000 until 0000:03FF IVT Used by the BIOS, don't write here */
-/* 0040:0000 until 0040:00FF BDA Used by the BIOS, don't write here */
-/* [0040:0100 is 0050:0000] until 7000:FFFF Conventional Memory */
-#define MBR_SEGM 0x07C0 /* BIOS loads us here */
-#define KRN_SEGM 0x1000 /* 0x10000 - 0x1FFFF */
-/* 8000:0000 until 9000:FFFF EBDA */
-/* A000:0000 until B000:FFFF VRAM */
-/* C000:0000 until C000:7FFF BIOS Expansion */
-/* C000:8000 until E000:FFFF VGA BIOS */
-/* F000:0000 until F000:FFFF Motherboard BIOS */
-/******************************************************************************/
-
 /*******************************************************************************
  * BIOS Entry Point into MBR, testing in qemu shows we get here via lcall.
  ******************************************************************************/
-    .global  _start
     .text
     .code16
     . = 0
@@ -50,9 +42,7 @@ return:         ret /* derefence indirect "Jcc return" */
 /*******************************************************************************
  * Static Data
  ******************************************************************************/
-    .global osname
 osname:                 .ascii              "[s]" /* include the crlf */
-    .global crlf
 crlf:                   .asciz              "\r\n"
 msg_halting:            .asciz              "fin"
 /******************************************************************************/

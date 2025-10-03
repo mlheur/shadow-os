@@ -2,7 +2,7 @@ IMAGE := $(shell cat .image)
 INCDIR := ./src/include
 GASOPTS := -I${INCDIR} -g -Wa,--32 -c
 OBJOPTS := -M att -m i8086
-LDOPTS  := -s -m elf_i386 --oformat binary -e _start -Ttext 0
+LDOPTS  := -s -m elf_i386 --oformat binary -e _start -Ttext 0 
 
 OBJECTS := ./objs/mbr.o ./objs/krn.o
 

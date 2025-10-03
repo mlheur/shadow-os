@@ -2,12 +2,12 @@
 #ifndef __PRINTS_S__
 #define __PRINTS_S__
 
+
 /*******************************************************************************
  * Function: strout
  * Purpose: write a null-terminated string through altty
  * Parameters: ds:si the address of the first character
  * Outputs: None. */
-    .global strout
 strout:         lodsb                       /* copy the character to al, increment si */
                 testb   %al,                %al /* test if it is the null terminator */
                 jz      return
