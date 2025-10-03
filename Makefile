@@ -9,11 +9,14 @@ OBJECTS := ./objs/mbr.o ./objs/krn.o
 all : ${IMAGE}
 
 clean : 
-	rm -f ${IMAGE} bin/* objs/* dumps/*
+	rm -f ${IMAGE} ./bin/* ./objs/* ./dumps/*
 
 ${IMAGE} : ${OBJECTS}
 	ld ${LDOPTS} -o ${IMAGE} ${OBJECTS}
-	dd if=${IMAGE} of=mbr.bin bs=512 count=1
+	test -d bin || mkdir bin
+	dd if=${IMAGE} of=./bin/image-mbr bs=512 count=1
+	objcopy -O binary -j .text objs/krn.o bin/objcopy-krn
+	objcopy -O binary -j .text objs/mbr.o bin/objcopy-mbr
 
 objs/mbr.o : ${INCDIR}/* ./src/mbr/*
 	test -d objs || mkdir objs
