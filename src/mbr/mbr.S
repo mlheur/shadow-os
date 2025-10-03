@@ -89,7 +89,6 @@ read_bootdev:   call    chs_read            /* copy the bootdev to RAM */
 pass_bootdevid: movzbw  chs_cmd.device,     %dx /* pass bootdev id on to the kernel via dl */
 _kernel:        movw    $KRN_SEGM,          %ax /* Do the kernel a favour ... */
                 movw    %ax,                %ds /* ... set the ds we chose for it */
-                printb('.')
 run_kernel:     ljmp    $KRN_SEGM,          $KRN /* Run the kernel in its code segment */
 /*******************************************************************************
  * End MBR function
