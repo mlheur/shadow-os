@@ -57,16 +57,17 @@ inquire_geom:   xorw    %ax,                %ax /* get a zero */
                 movb    $0x08,              %ah /* "CHS inquire" command */
                 movb    chs_cmd.device,     %dl /* inquire for the boot device */
                 int     $0x13               /* submit the inquiry */
+CONTINUE_INT13_inquire_geom:
 /* https://fd.lod.bz/rbil/interrup/bios/1308.html
-    AH = 00h
-    AL = 00h on at least some BIOSes
-    BL = drive type (AT/PS2 floppies only) (see #00242)
-    CH = low eight bits of maximum cylinder number
-    CL = maximum sector number (bits 5-0)
-         high two bits of maximum cylinder number (bits 7-6)
-    DH = maximum head number
-    DL = number of drives
-    ES:DI -> drive parameter table (floppies only) */
+         AH = 00h
+         AL = 00h on at least some BIOSes
+         BL = drive type (AT/PS2 floppies only) (see #00242)
+         CH = low eight bits of maximum cylinder number
+         CL = maximum sector number (bits 5-0)
+           high two bits of maximum cylinder number (bits 7-6)
+         DH = maximum head number
+         DL = number of drives
+         ES:DI -> drive parameter table (floppies only) */
 save_heads:     movb    %dh,                drvdata.head
 save_cylsec:    movw    %cx,                drvdata.cylsec
                 movw    %bx,                %es /* get it back */
@@ -75,6 +76,15 @@ set_readlimit:  addw    %bx,                chs_cmd.readlimit /* KRN_SEGM:0000 u
 
 /* Start reading the boot device, assume all+ registers are garbage, load from struct
  *   +[guard es, was set above and is managed throughout] */
+load_registers: movb    chs_cmd.device,     %dl /* whatever device we booted from */
+                movb    chs_cmd.head,       %dh /* address the proper head */
+                movw    chs_cmd.cylsec,     %cx /* mangled cylsec value into cx */
+                xorw    %bx,                %bx /* es was managed so bx can always be zero */
+                movb    chs_cmd.readlen,    %al /* how many sectors we'd like to read */
+                movb    $0x02,              %ah /* CHS "read" command */
+#ifdef DEBUG
+                call    debug_regs
+#endif
 /*******************************************************************************
  * CHS Read: https://fd.lod.bz/rbil/interrup/bios/1302.html
  * INT 13 - DISK - READ SECTOR(S) INTO MEMORY     
@@ -87,16 +97,8 @@ set_readlimit:  addw    %bx,                chs_cmd.readlimit /* KRN_SEGM:0000 u
  *	DL = drive number (bit 7 set for hard disk)
  *	ES:BX -> data buffer
  ******************************************************************************/
-run_interrupt:  movb    chs_cmd.device,     %dl /* whatever device we booted from */
-                movb    chs_cmd.head,       %dh /* address the proper head */
-                movw    chs_cmd.cylsec,     %cx /* mangled cylsec value into cx */
-                xorw    %bx,                %bx /* es was managed so bx can always be zero */
-                movb    chs_cmd.readlen,    %al /* how many sectors we'd like to read */
-                movb    $0x02,              %ah /* CHS "read" command */
-#ifdef DEBUG
-                call    debug_regs
-#endif /* DEBUG */
                 int     $0x13               /* perform the read */
+CONTINUE_INT13_chs_read:
 #ifdef DEBUG
                 pushf
                 call    debug_regs
@@ -106,25 +108,19 @@ errchecking:    jc      chs_failed          /* handle any errors */
 
 
 /* ah=0, al=sectors_read, the read was successful, advance the buffer pointer */
-adv_buf_ptr:    movw    %ax,                %bx /* get a copy of ax to work on */
-                subb    chs_cmd.readlen,    %bl /* check if the sectors requested equals the sectors read */
-                jnz     read_complete       /* break out if the read was truncated */
+adv_buf_ptr:    movb    %al,                chs_cmd.readlen /* save sectors_read counter for reuse */
                 movw    %es,                %bx /* we need to do arithmatic on es, copy to bx */
                 movw    $0x20,              %ax /* get a 512-byte segment muliplicand */
                 mulb    chs_cmd.readlen     /* use the sectors-read counter as the other multiplicand */
                 addw    %ax,                %bx /* advance bx by the results */
                 movw    %bx,                %es /* and save it back to es; bx still contains the new es value */
-
-
-check_complete: subw    chs_cmd.readlimit,  %bx /* check if the buffer pointer has totally advanced by 64k */
-                jb      wrap_sector             /* when the readlimit is reached, the loader is finished */
-read_complete:  popa
-                ret
+check_complete: subw    $(KRN_SEGM+0x1000), %bx /* check if the buffer pointer has totally advanced by 64k */
+                jae     _kernel             /* when 64KiB have been read, the loader is finished */
 /* this is the only legitimate exit point for MBR, all other exits are due to failure and should jump to halt(ing) */
 
 
 /* advance the CHS structure similarily to advancing the buffer pointer */
-/* Each of the three wrappers below will set the whole CHS struct appropriately, and jump to the next run_interrupt iteration */
+/* Each of the three wrappers below will set the whole CHS struct appropriately, and jump to the next load_registers iteration */
 wrap_sector:    movw    chs_cmd.cylsec,     %ax /* get the 16-bit mangled cylsec address that was just read from */
                 andw    $0x003F,            %ax /* filter the 6-bit sector portion */
                 movzbw  chs_cmd.readlen,    %bx /* recall how many sectors were successfully read */
@@ -135,7 +131,7 @@ wrap_sector:    movw    chs_cmd.cylsec,     %ax /* get the 16-bit mangled cylsec
                 subw    %ax,                %cx /* compare the calculated sector ID against the limit, destroys cx */
                 jb      wrap_head           /* if ax is bigger than cx then the limit was exceeded, wrap to the next head */
                 movw    %ax,                chs_cmd.cylsec /* else the calculated sector ID is valid, commit it */
-                jmp     run_interrupt       /* go read the new sector(s) */
+                jmp     load_registers            /* go read the new sector(s) */
 
 
 /******************************************************************************/
@@ -161,7 +157,7 @@ wrap_head:      movzbw  drvdata.head,       %bx /* get the metric against which 
 remaining_secs: negw    %cx                 /* we have to further advance the sectors by this much, figured in the subw instruction of wrap_sector */
                 addb    %cl,                %al /* add that many more to the sector ID */
                 movb    %al,                chs_cmd.cylsec /* finally save the sector ID back to the CHS struct */
-                jmp     run_interrupt       /* and go read it */
+                jmp     load_registers            /* and go read it */
 
 
 /******************************************************************************/
