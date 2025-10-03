@@ -99,9 +99,7 @@ run_kernel:     ljmp    $KRN_SEGM,          $KRN /* Run the kernel in its code s
     . = 0x1fe
 signature:      .short 0xAA55
     . = 0x200
-KRN:            prints      (osname)
-FIN:            popa /* MBR saved this from the BIOS, we got here via jumps */
-RETURN_TO_BIOS: lret /* qemu seems to like lret to return to the BIOS after it (l)calls MBR */
+KRN:
 /******************************************************************************/
 
 #endif /* __MBR_S__ */

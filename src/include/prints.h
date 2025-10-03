@@ -6,11 +6,11 @@
     .global osname
     .global crlf
     .global strout
-#else /* MBR_S */
+#else /* __MBR_S__ */
     .extern osname
     .extern crlf
     .extern strout
-#endif /* MBR_S */
+#endif /* __MBR_S__ */
 
 
 
