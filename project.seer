@@ -5,7 +5,8 @@
         },
         "executable": "./objs/mbr.o",
         "postgdbcommands": [
-            "restore ./bin/mbr binary 0x7c00",
+            "restore ./mbr.bin binary 0x7c00",
+            "break *0x7c00+MBR",
             "break *0x7c00+check_complete",
             "continue"
         ],

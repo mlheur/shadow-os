@@ -1,33 +1,28 @@
 IMAGE := $(shell cat .image)
-GASOPTS := -Isrc/mbr -g -Wa,--32 -c
+INCDIR := ./src/include
+GASOPTS := -I${INCDIR} -g -Wa,--32 -c
 OBJOPTS := -M att -m i8086
+LDOPTS  := -s -m elf_i386 --oformat binary -e _start -Ttext 0
+
+OBJECTS := ./objs/mbr.o ./objs/krn.o
 
 all : ${IMAGE}
 
 clean : 
 	rm -f ${IMAGE} bin/* objs/* dumps/*
 
-${IMAGE} : bin/mbr bin/krn
-	dd of=${IMAGE} bs=512 seek=0 if=bin/mbr count=1
-	dd of=${IMAGE} bs=512 seek=1 if=bin/krn count=1
-	dd of=${IMAGE} bs=512 seek=2 if=data count=126 skip=2
+${IMAGE} : ${OBJECTS}
+	ld ${LDOPTS} -o ${IMAGE} ${OBJECTS}
+	dd if=${IMAGE} of=mbr.bin bs=512 count=1
 
-bin/mbr : objs/mbr.o
-	test -d bin || mkdir bin
-	objcopy -O binary -j .text objs/mbr.o bin/mbr
-
-bin/krn : objs/krn.o
-	test -d bin || mkdir bin
-	objcopy -O binary -j .text objs/krn.o bin/krn
-
-objs/mbr.o : src/mbr/*
+objs/mbr.o : ${INCDIR}/* ./src/mbr/*
 	test -d objs || mkdir objs
 	test -d dumps || mkdir dumps
 	gcc ${GASOPTS} -o objs/mbr.o src/mbr/mbr.S && \
 	objdump ${OBJOPTS} -d objs/mbr.o > dumps/mbr.dump && \
 	nm -g objs/mbr.o > objs/mbr.symbols
 
-objs/krn.o : src/krn/* objs/mbr.o
+objs/krn.o : ${INCDIR}/* ./src/krn/*
 	test -d objs || mkdir objs
 	test -d dumps || mkdir dumps
 	gcc ${GASOPTS} -o objs/krn.o src/krn/krn.S && \
