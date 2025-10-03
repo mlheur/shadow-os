@@ -94,9 +94,9 @@ init_COM1:      movw    $0xE3,              %ax /* 9600-8-None-1 */
 target_krn:     movw    $KRN_SEGM,          %ax /* pass the KRN_SEGM ... */
                 movw    %ax,                %es /* ... to chs_read via es */
 read_bootdev:   call    chs_read            /* copy the bootdev to RAM */
+pass_bootdevid: movzbw  chs_cmd.device,     %dx /* pass bootdev id on to the kernel via dl */
 _kernel:        movw    $KRN_SEGM,          %ax /* Do the kernel a favour ... */
                 movw    %ax,                %ds /* ... set the ds we chose for it */
-pass_bootdev:   movzbw  chs_cmd.device,     %dx /* pass bootdev on to the kernel via dl */
 run_kernel:     ljmp    $KRN_SEGM,          $KRN /* Run the kernel in its code segment */
 /*******************************************************************************
  * End MBR function
@@ -107,7 +107,6 @@ run_kernel:     ljmp    $KRN_SEGM,          $KRN /* Run the kernel in its code s
     . = 0x1fe
 signature:      .short 0xAA55
     . = 0x200
-    .global KRN
 KRN:            prints      (osname)
 FIN:            popa /* MBR saved this from the BIOS, we got here via jumps */
 RETURN_TO_BIOS: lret /* qemu seems to like lret to return to the BIOS after it (l)calls MBR */
