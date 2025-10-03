@@ -17,9 +17,9 @@
  * Input Data from caller
  ******************************************************************************/
 chs_cmd:
-chs_cmd.device:         .byte 0
+chs_cmd.device:         .byte 0 /* will be filled in by MBR caller, passed from BIOS */
 chs_cmd.cylsec:         .word 1 /* seek sector 1 */
-chs_cmd.head:           .byte 0
+chs_cmd.head:           .byte 0 /* seek head 0 */
 chs_cmd.readlen:        .byte 0x40 /* in & out, must be non-zero inbound */
 chs_cmd.readlimit:      .word 0x1000 /* boot device is 64 KiB */
 chs_cmd_sz = . - chs_cmd

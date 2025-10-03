@@ -1,15 +1,16 @@
 IMAGE := $(shell cat .image)
-GASOPTS := -Isrc/mbr -g -Wa,--32 -Wa,-a -c
+GASOPTS := -Isrc/mbr -g -Wa,--32 -c
 OBJOPTS := -M att -m i8086
 
 all : ${IMAGE}
 
 clean : 
-	rm -f bin/* objs/* dumps/*
+	rm -f ${IMAGE} bin/* objs/* dumps/*
 
 ${IMAGE} : bin/mbr bin/krn
 	dd of=${IMAGE} bs=512 seek=0 if=bin/mbr count=1
-	dd of=${IMAGE} bs=512 seek=1 if=bin/krn
+	dd of=${IMAGE} bs=512 seek=1 if=bin/krn count=1
+	dd of=${IMAGE} bs=512 seek=2 if=data count=126 skip=2
 
 bin/mbr : objs/mbr.o
 	test -d bin || mkdir bin

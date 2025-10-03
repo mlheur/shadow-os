@@ -15,7 +15,6 @@
  * -- https://wiki.osdev.org/System_Initialization_(x86)
  ******************************************************************************/
 
-
 /******************************************************************************/
 /* Missing in the above, taken from : https://wiki.osdev.org/Memory_Map_(x86) */
 /* 0000:0000 until 0000:03FF IVT Used by the BIOS, don't write here */
@@ -30,8 +29,6 @@
 /* F000:0000 until F000:FFFF Motherboard BIOS */
 /******************************************************************************/
 
-
-
 /*******************************************************************************
  * BIOS Entry Point into MBR, testing in qemu shows we get here via lcall.
  ******************************************************************************/
@@ -42,36 +39,28 @@
 _start:         pusha /* preserve BIOS registers, KRN will restore pre-lret */
                 ljmp    $MBR_SEGM,          $MBR /* Run the MBR into KRN */
 /******************************************************************************/
-
-
-/*******************************************************************************
- * Static Data
- ******************************************************************************/
-    .global osname
-osname:                 .ascii              "[s]" /* include the crlf */
-    .global crlf
-crlf:                   .asciz              "\r\n"
-msg_halting:            .asciz              "fin"
-/******************************************************************************/
-
-
-/*******************************************************************************
- * Import functions for console output and disk input.
- * These will stay resident under KRN_SEGM:offset
- ******************************************************************************/
-.include "prints.S"
-.include "chs_read.S"
-
-
-/******************************************************************************/
 halting:        prints  (msg_halting)
 halt:           sti
                 hlt
                 jmp     halt
 /******************************************************************************/
-return:         ret /* used only for indirect "Jcc return" */
+return:         ret /* derefence indirect "Jcc return" */
 /******************************************************************************/
 
+/*******************************************************************************
+ * Static Data
+ ******************************************************************************/
+osname:                 .ascii              "[s]" /* include the crlf */
+crlf:                   .asciz              "\r\n"
+msg_halting:            .asciz              "fin"
+/******************************************************************************/
+
+/*******************************************************************************
+ * Import functions for console output and disk input.
+ * These will stay resident under KRN_SEGM:offset
+ ******************************************************************************/
+#include "prints.S"
+#include "chs_read.S"
 
 /*******************************************************************************
  * Most HDD MBRs relocate themselves to nearby, maybe cs:=0x07A0 and then load a
@@ -88,7 +77,6 @@ return:         ret /* used only for indirect "Jcc return" */
  * - boot device size will be limited to 64KiB, will be exactly that size.
  * - we can terminate the read when the buffer pointer is advanced by 64KiB */
 /******************************************************************************/
-
 
 /*******************************************************************************
  * Function: MBR
@@ -109,11 +97,10 @@ read_bootdev:   call    chs_read            /* copy the bootdev to RAM */
 _kernel:        movw    $KRN_SEGM,          %ax /* Do the kernel a favour ... */
                 movw    %ax,                %ds /* ... set the ds we chose for it */
 pass_bootdev:   movzbw  chs_cmd.device,     %dx /* pass bootdev on to the kernel via dl */
-                ljmp    $KRN_SEGM,          $KRN /* Run the kernel */
+run_kernel:     ljmp    $KRN_SEGM,          $KRN /* Run the kernel in its code segment */
 /*******************************************************************************
  * End MBR function
  ******************************************************************************/
-
 
 /*******************************************************************************
  * the last 2 bytes in the sector 0 must contain the signature */
