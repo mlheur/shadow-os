@@ -1,3 +1,7 @@
+    .file "prints.S"
+#ifndef __PRINTS_S__
+#define __PRINTS_S__
+
 /*******************************************************************************
  * Function: strout
  * Purpose: write a null-terminated string through altty
@@ -84,5 +88,7 @@ debug_regs:     pushw   %ax
                 prints  (crlf)
                 popw    %ax
                 ret
-#endif
+#endif /* DEBUG */
 /******************************************************************************/
+
+#endif /* __PRINTS_S__ */

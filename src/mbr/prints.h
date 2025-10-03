@@ -1,19 +1,16 @@
-/******************************************************************************/
+#ifndef __PRINTS_H__
+#define __PRINTS_H__
+
 #ifndef prints
-#define prints(s)       movw $s, %si; call strout /* clobbers ax and si */
+#define prints(s)       movw $s, %si; call strout
 #endif
 
 #ifndef printb
-#define printb(b)       movw b, %ax; call print_byte /* clobbers ah */
+#define printb(b)       movw b, %ax; call print_byte
 #endif
 
-#ifndef print2
-#define printw(w)       movw w, %ax; call print_word /* clobbers ah */
+#ifndef printw
+#define printw(w)       movw w, %ax; call print_word
 #endif
-/******************************************************************************/
 
-#ifndef MBR_S
-    .extern strout
-    .extern print_byte
-    .extern print_word
-#endif
+#endif /* __PRINTS_H__ */

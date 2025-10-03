@@ -1,8 +1,9 @@
 #define KRN_S
 
-#include "../mbr/prints.h"
+#include "prints.h"
 
     .extern osname
+    .extern crlf
 
     .text
     .code16

@@ -1,4 +1,9 @@
-#define MBR_S
+    .file "mbr.S"
+#ifndef __MBR_S__
+#define __MBR_S__
+
+#define DEBUG
+#include "prints.h"
 
 /*******************************************************************************
  * BIOS hands over to MBR:
@@ -23,16 +28,6 @@
 /* C000:0000 until C000:7FFF BIOS Expansion */
 /* C000:8000 until E000:FFFF VGA BIOS */
 /* F000:0000 until F000:FFFF Motherboard BIOS */
-/******************************************************************************/
-
-
-/******************************************************************************/
-#define DEBUG
-/******************************************************************************/
-/******************************************************************************/
-#define prints(s)       movw $s, %si; call strout /* clobbers ax and si */
-#define printb(b)       movw b, %ax; call print_byte /* clobbers ah */
-#define printw(w)       movw w, %ax; call print_word /* clobbers ah */
 /******************************************************************************/
 
 
@@ -64,8 +59,8 @@ msg_halting:            .asciz              "fin"
  * Import functions for console output and disk input.
  * These will stay resident under KRN_SEGM:offset
  ******************************************************************************/
-#include "prints.S"
-#include "chs_read.S"
+.include "prints.S"
+.include "chs_read.S"
 
 
 /******************************************************************************/
@@ -130,3 +125,5 @@ KRN:            prints      (osname)
 FIN:            popa /* MBR saved this from the BIOS, we got here via jumps */
 RETURN_TO_BIOS: lret /* qemu seems to like lret to return to the BIOS after it (l)calls MBR */
 /******************************************************************************/
+
+#endif /* __MBR_S__ */

@@ -1,3 +1,7 @@
+    .file "chrs_read.S"
+#ifndef __CHS_READ_S__
+#define __CHS_READ_S__
+
 /*******************************************************************************
  * TODO:
  1: prevent overreading when nearing the end.  When es is advanced far enough
@@ -91,13 +95,13 @@ run_interrupt:  movb    chs_cmd.device,     %dl /* whatever device we booted fro
                 movb    $0x02,              %ah /* CHS "read" command */
 #ifdef DEBUG
                 call    debug_regs
-#endif
+#endif /* DEBUG */
                 int     $0x13               /* perform the read */
 #ifdef DEBUG
                 pushf
                 call    debug_regs
                 popf
-#endif
+#endif /* DEBUG */
 errchecking:    jc      chs_failed          /* handle any errors */
 
 
@@ -193,3 +197,5 @@ chs_failed:     movw    %ax,                %bx /* make a backup of ax */
 /*******************************************************************************
  * End chs_read function
  ******************************************************************************/
+
+#endif /* __CHS_READ_S__ */
