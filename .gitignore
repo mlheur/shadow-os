@@ -5,3 +5,5 @@ dumps
 *.img
 .image
 *.pdf
+data
+*.bin
