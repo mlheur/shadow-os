@@ -1,1 +1,1 @@
-make && { /bin/seergdb --project project.seer & GDB=1 ./run-qemu.sh; }
+make && { seergdb --project project.seer & GDB=1 ./run-qemu.sh; }
