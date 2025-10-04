@@ -10,4 +10,4 @@ for A in $HEXSTR; do
 			done;
 		done;
 	done;
-done > data
+done > ./data

@@ -1,6 +1,7 @@
 #ifndef __KRN_S__
 #define __KRN_S__
 
+#include "globals.h"
 #include "prints.h"
 
 
@@ -20,8 +21,31 @@
     .code16
 SHADOW_OS:      prints      (osname)
                 prints      (crlf)
+                call        DumpIVT
 FIN:            popa /* MBR saved this from the BIOS, we got here via jumps */
 RETURN_TO_BIOS: lret /* qemu seems to like lret to return to the BIOS after it (l)calls MBR */
 
+
+    .code32
+print_long:     pushw       %cx
+                movw        $28,        %cx
+                jmp         savedx
+
+msg_address:    .asciz "address:0x"
+msg_vector:     .asciz " vector:0x"
+DumpIVT:        xorl        %eax,       %eax
+                movl        %eax,       %esi
+                movl        $0400,      %ecx /* read from 0x0400 down to 0x0000, stepping by four */
+                subl        $4,         %ecx
+                pushf
+                prints      (msg_address)
+                movl        %ecx,       %eax
+                call        print_long
+                prints      (msg_vector)
+                movl        (%ecx),     %eax
+                call        print_long
+                prints(crlf)
+                popf
+                jz          return
 
 #endif /* __KRN_S__ */

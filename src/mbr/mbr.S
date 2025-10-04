@@ -3,10 +3,8 @@
 #define __MBR_S__
 
 
-.global _start
-
-
 #define DEBUG
+#include "globals.h"
 #include "segments.h"
 #include "prints.h"
 

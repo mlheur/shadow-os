@@ -3,12 +3,8 @@
 
 
 #ifdef __MBR_S__
-    .global osname
-    .global crlf
     .global strout
 #else /* __MBR_S__ */
-    .extern osname
-    .extern crlf
     .extern strout
 #endif /* __MBR_S__ */
 

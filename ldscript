@@ -1,0 +1,8 @@
+SECTIONS {
+    .text.start (_start) : {
+        ./objs/mbr.o( .text )
+        ./objs/krn.o( .text )
+    }
+}
+OUTPUT_ARCH(i386)
+OUTPUT_FORMAT(binary)
