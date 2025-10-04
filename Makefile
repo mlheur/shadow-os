@@ -2,7 +2,8 @@ IMAGE := $(shell cat .image)
 INCDIR := ./src/include
 GASOPTS := -I${INCDIR} -g -Wa,--32 -c
 OBJOPTS := -M att -m i8086
-LDOPTS  := -s -dT ldscript
+
+LDOPTS  := -static -s -dT ./ldscript -Map=./dumps/final_linker_symbols.map
 
 OBJECTS := ./objs/mbr.o ./objs/krn.o
 
@@ -13,8 +14,11 @@ clean :
 	rm -f ${IMAGE} ./bin/* ./objs/* ./dumps/*
 
 ${IMAGE} : ${OBJECTS}
-	ld ${LDOPTS} -o ${IMAGE}
-	./helpers/add_padding.ksh ${IMAGE}
+	ld ${LDOPTS} -o ${IMAGE} ${OBJECTS}
+	#cp ${IMAGE} .tmp
+	#dd if=.tmp of=${IMAGE} bs=512 skip=2 seek=1 count=1
+	#rm .tmp
+	#./helpers/add_padding.ksh ${IMAGE}
 
 objs/mbr.o : dirs ${INCDIR}/* ./src/mbr/*
 	gcc ${GASOPTS} -o ./objs/mbr.o ./src/mbr/mbr.S && \

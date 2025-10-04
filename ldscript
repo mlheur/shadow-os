@@ -1,10 +1,8 @@
 SECTIONS {
-    .text.start (_start) : {
-        . = 0;
-        ./objs/mbr.o( .text )
-        . = 0x200;
-        ./objs/krn.o( .text )
+    .text : {
+        *(.text)
     }
+    /DISCARD/ : { *(.data) *(.bss) }
 }
 OUTPUT_ARCH(i386)
 OUTPUT_FORMAT(binary)

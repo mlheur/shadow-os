@@ -3,6 +3,9 @@
 #define __PRINTS_S__
 
 
+crlf:           .asciz "\r\n"
+
+
 /*******************************************************************************
  * Function: strout
  * Purpose: write a null-terminated string through altty

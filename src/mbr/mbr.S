@@ -24,7 +24,6 @@
  * BIOS Entry Point into MBR, testing in qemu shows we get here via lcall.
  ******************************************************************************/
     .text
-    . = 0
 _start:         pusha /* preserve BIOS registers, KRN will restore pre-lret */
 jump_mbr_segm:  ljmp    $MBR_SEGM,          $MBR /* Run the MBR into KRN */
 /******************************************************************************/
@@ -39,8 +38,6 @@ return:         ret /* derefence indirect "Jcc return" */
 /*******************************************************************************
  * Static Data
  ******************************************************************************/
-osname:                 .ascii              "[s]" /* include the crlf */
-crlf:                   .asciz              "\r\n"
 msg_halting:            .asciz              "fin"
 /******************************************************************************/
 
@@ -84,19 +81,20 @@ target_krn:     movw    $KRN_SEGM,          %ax /* pass the KRN_SEGM ... */
                 movw    %ax,                %es /* ... to chs_read via es */
 read_bootdev:   call    chs_read            /* copy the bootdev to RAM */
 pass_bootdevid: movzbw  chs_cmd.device,     %dx /* pass bootdev id on to the kernel via dl */
-_kernel:        movw    $KRN_SEGM,          %ax /* Do the kernel a favour ... */
+_kernel:        movw    $KRN_SEGM+0x200,    %ax /* Do the kernel a favour ... */
                 movw    %ax,                %ds /* ... set the ds we chose for it */
-run_kernel:     ljmp    $KRN_SEGM,          $KRN /* Run the kernel in its code segment */
+run_kernel:     ljmp    $KRN_SEGM+0x200,    $0 /* Run the kernel in its code segment */
 /*******************************************************************************
  * End MBR function
  ******************************************************************************/
 
 /*******************************************************************************
  * the last 2 bytes in the sector 0 must contain the signature */
-    . = 0x1fe
+    . = _start + 0x1fe
 signature:      .short 0xAA55
-    . = 0x200
+    . = _start + 0x200
 KRN:
 /******************************************************************************/
+
 
 #endif /* __MBR_S__ */

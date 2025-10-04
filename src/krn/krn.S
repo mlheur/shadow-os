@@ -20,12 +20,13 @@
  *       SHADOW_OS was loaded at 1000:0200, MBR long jumps here and here we are.
  ******************************************************************************/
     .text
-    . = 0x200
 SHADOW_OS:      prints      (osname)
                 prints      (crlf)
                 call        DumpIVT
 FIN:            popa /* MBR saved this from the BIOS, we got here via jumps */
 RETURN_TO_BIOS: lret /* qemu seems to like lret to return to the BIOS after it (l)calls MBR */
+
+osname: .asciz "(SHADOW)"
 
 print_long:     pushl       %ecx
                 movl        $28,        %ecx
