@@ -1,6 +1,8 @@
 #ifndef __KRN_S__
 #define __KRN_S__
 
+    .code32
+
 #include "globals.h"
 #include "prints.h"
 
@@ -18,17 +20,15 @@
  *       SHADOW_OS was loaded at 1000:0200, MBR long jumps here and here we are.
  ******************************************************************************/
     .text
-    .code16
+    . = 0x200
 SHADOW_OS:      prints      (osname)
                 prints      (crlf)
                 call        DumpIVT
 FIN:            popa /* MBR saved this from the BIOS, we got here via jumps */
 RETURN_TO_BIOS: lret /* qemu seems to like lret to return to the BIOS after it (l)calls MBR */
 
-
-    .code32
-print_long:     pushw       %cx
-                movw        $28,        %cx
+print_long:     pushl       %ecx
+                movl        $28,        %ecx
                 jmp         savedx
 
 msg_address:    .asciz "address:0x"

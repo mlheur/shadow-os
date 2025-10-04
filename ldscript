@@ -1,6 +1,8 @@
 SECTIONS {
     .text.start (_start) : {
+        . = 0;
         ./objs/mbr.o( .text )
+        . = 0x200;
         ./objs/krn.o( .text )
     }
 }

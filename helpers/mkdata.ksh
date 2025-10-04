@@ -1,5 +1,12 @@
 #!/bin/ksh
 
+DATA=$1
+shift
+if [ -z "${DATA}" ]; then
+	echo "Usage: $0 filename" >&2
+	exit 1
+fi
+
 HEXSTR="0 1 2 3 4 5 6 7 8 9 A B C D E F"
 
 for A in $HEXSTR; do
@@ -10,4 +17,4 @@ for A in $HEXSTR; do
 			done;
 		done;
 	done;
-done > ./data
+done > "${DATA}"

@@ -2,12 +2,12 @@
 #ifndef __MBR_S__
 #define __MBR_S__
 
+    .code16
 
 #define DEBUG
 #include "globals.h"
 #include "segments.h"
 #include "prints.h"
-
 
 
 /*******************************************************************************
@@ -24,7 +24,6 @@
  * BIOS Entry Point into MBR, testing in qemu shows we get here via lcall.
  ******************************************************************************/
     .text
-    .code16
     . = 0
 _start:         pusha /* preserve BIOS registers, KRN will restore pre-lret */
 jump_mbr_segm:  ljmp    $MBR_SEGM,          $MBR /* Run the MBR into KRN */
