@@ -22,9 +22,7 @@
     .data
     . = 0x200
     .text
-SHADOW_OS:      /* prints      (osname) */
-                movl        $osname, %esi
-                call        _strfn_out
+SHADOW_OS:      prints      (osname)
                 prints      (_str_crlf)
                 call        DumpIVT
 FIN:            popa /* MBR saved this from the BIOS, we got here via jumps */
