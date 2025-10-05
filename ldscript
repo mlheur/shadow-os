@@ -1,4 +1,6 @@
+ENTRY(_start)
 SECTIONS {
+    _start = .;
     .text : {
         *(.text)
     }

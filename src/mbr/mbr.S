@@ -70,6 +70,7 @@ msg_halting:            .asciz              "fin"
  * - dl, the bootdev the bios read the MBR off of
  * - best to get here via long jump so we can use the local segment offsets for
  *   all addressing */
+
 MBR:
 prep_segments:  movw    %cs,                %ax /* copy the code segment address ... */
                 movw    %ax,                %ds /* ...  to data segment register for easy access to locals, such as in save_bootdev */
@@ -81,9 +82,9 @@ target_krn:     movw    $KRN_SEGM,          %ax /* pass the KRN_SEGM ... */
                 movw    %ax,                %es /* ... to chs_read via es */
 read_bootdev:   call    chs_read            /* copy the bootdev to RAM */
 pass_bootdevid: movzbw  chs_cmd.device,     %dx /* pass bootdev id on to the kernel via dl */
-_kernel:        movw    $KRN_SEGM+0x200,    %ax /* Do the kernel a favour ... */
+_kernel:        movw    $KRN_SEGM,          %ax /* Do the kernel a favour ... */
                 movw    %ax,                %ds /* ... set the ds we chose for it */
-run_kernel:     ljmp    $KRN_SEGM+0x200,    $0 /* Run the kernel in its code segment */
+run_kernel:     ljmp    $KRN_SEGM,          $KRN /* Run the kernel in its code segment */
 /*******************************************************************************
  * End MBR function
  ******************************************************************************/

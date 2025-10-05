@@ -2,11 +2,13 @@
 #define __PRINTS_H__
 
 
-#ifdef __MBR_S__
-
     .global strout
     .global print_byte
     .global print_word
+    .global savedx
+
+
+#ifdef __MBR_S__
 
 #ifndef prints
 #define prints(s)       movw $s, %si; call strout
@@ -21,10 +23,6 @@
 #endif
 
 #else /* __MBR_S__ */
-
-    .extern strout
-    .extern print_byte
-    .extern print_word
 
 #ifndef prints
 #define prints(s)       movl $s, %esi; call strout

@@ -19,8 +19,12 @@
  *      MBR loaded the bootdevice to 1000:0000, including itself, consequently
  *       SHADOW_OS was loaded at 1000:0200, MBR long jumps here and here we are.
  ******************************************************************************/
+    .data
+    . = 0x200
     .text
-SHADOW_OS:      prints      (osname)
+SHADOW_OS:      /* prints      (osname) */
+                movl        $osname, %esi
+                call        strout
                 prints      (crlf)
                 call        DumpIVT
 FIN:            popa /* MBR saved this from the BIOS, we got here via jumps */

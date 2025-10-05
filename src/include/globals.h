@@ -2,10 +2,8 @@
 #define __GLOBALS_H__
 
 
-    .global osname
-    .global crlf
-    .global return
-    .global savedx
+.global crlf
+.global return
 
 
 #endif /* __GLOBALS_H__ */
