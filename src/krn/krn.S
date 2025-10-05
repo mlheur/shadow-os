@@ -31,25 +31,38 @@ RETURN_TO_BIOS: lret /* qemu seems to like lret to return to the BIOS after it (
 osname: .asciz "(SHADOW)"
 
 print_long:     pushw       %cx
-                movw        $28,        %cx
+                movw        $28,            %cx
                 jmp         savedx
 
-msg_address:    .asciz "address:0x"
-msg_vector:     .asciz " vector:0x"
-DumpIVT:        xorw        %ax,        %ax
-                movw        %ax,        %si
-                movl        $0400,      %ecx /* read from 0x0400 down to 0x0000, stepping by four */
-1:              subl        $4,         %ecx
-                pushf
-                prints      (msg_address)
-                movw        %cx,        %ax
+msg_vec_seg:    .asciz " segment:0x"
+msg_vec_off:    .asciz " offset:0x"
+msg_interrupt:  .asciz "int:0x"
+DumpIVT:        pusha
+                xorl        %ebx,           %ebx /* start at int 0x00 */
+                movl        %ebx,           %ecx /* use cx as copy of ds register during IVT reads */
+                movw        %ds,            %dx /* use dx as copy of ds register during prints reads */
+
+1:              prints      (msg_interrupt)
+                movw        %bx,            %ax
+                call        print_byte
+
+                prints      (msg_vec_seg)
+                movw        %cx,            %ds
+                movw        2(,%ebx,4), %ax
+                movw        %dx,            %ds
                 call        print_word
-                prints      (msg_vector)
-                movw        (%ecx),     %ax
+
+                prints      (msg_vec_off)
+                movw        %cx,            %ds
+                movw        (,%ebx,4),  %ax
+                movw        %dx,            %ds
                 call        print_word
+
                 prints      (_str_crlf)
-                popf
-                jz          _ret
-                jmp         1b
+
+                addb        $1,             %bl
+                jnc         1b
+                popa
+                ret
 
 #endif /* __KRN_S__ */
