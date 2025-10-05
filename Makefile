@@ -3,7 +3,7 @@ INCDIR := ./src/include
 GASOPTS := -I${INCDIR} -g -Wa,--32 -c
 OBJOPTS := -M att -m i8086
 
-LDOPTS  := -static -s -dT ./ldscript -Map=./dumps/final_linker_symbols.map
+LDOPTS  := -static -s -dT ./ld.script -Map=./dumps/final_linker_symbols.map
 
 OBJECTS := ./objs/mbr.o ./objs/krn.o
 
