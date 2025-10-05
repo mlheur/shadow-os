@@ -40,7 +40,7 @@ msg_interrupt:  .asciz "int:0x"
 DumpIVT:        pusha
                 xorl        %ebx,           %ebx /* start at int 0x00 */
                 movl        %ebx,           %ecx /* use cx as copy of ds register during IVT reads */
-                movw        %ds,            %dx /* use dx as copy of ds register during prints reads */
+                movw        %ds,            %dx  /* use dx as copy of ds register during prints reads */
 
 1:              prints      (msg_interrupt)
                 movw        %bx,            %ax
@@ -60,8 +60,8 @@ DumpIVT:        pusha
 
                 prints      (_str_crlf)
 
-                addb        $1,             %bl
-                jnc         1b
+                addb        $1,             %bl /* the last interrupt is 0xFF */
+                jnc         1b                  /* loop until the carry flag gets set rolling past 0xFF */
                 popa
                 ret
 
