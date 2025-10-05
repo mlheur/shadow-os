@@ -18,7 +18,7 @@ ${IMAGE} : ${OBJECTS}
 	#cp ${IMAGE} .tmp
 	#dd if=.tmp of=${IMAGE} bs=512 skip=2 seek=1 count=1
 	#rm .tmp
-	#./helpers/add_padding.ksh ${IMAGE}
+	./helpers/add_padding.ksh ${IMAGE}
 
 objs/mbr.o : dirs ${INCDIR}/* ./src/mbr/*
 	gcc ${GASOPTS} -o ./objs/mbr.o ./src/mbr/mbr.S && \

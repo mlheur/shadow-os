@@ -1,7 +1,7 @@
 #ifndef __KRN_S__
 #define __KRN_S__
 
-    .code32
+    .code16
 
 #include "globals.h"
 #include "prints.h"
@@ -30,25 +30,26 @@ RETURN_TO_BIOS: lret /* qemu seems to like lret to return to the BIOS after it (
 
 osname: .asciz "(SHADOW)"
 
-print_long:     pushl       %ecx
-                movl        $28,        %ecx
+print_long:     pushw       %cx
+                movw        $28,        %cx
                 jmp         savedx
 
 msg_address:    .asciz "address:0x"
 msg_vector:     .asciz " vector:0x"
-DumpIVT:        xorl        %eax,       %eax
-                movl        %eax,       %esi
+DumpIVT:        xorw        %ax,        %ax
+                movw        %ax,        %si
                 movl        $0400,      %ecx /* read from 0x0400 down to 0x0000, stepping by four */
-                subl        $4,         %ecx
+1:              subl        $4,         %ecx
                 pushf
                 prints      (msg_address)
-                movl        %ecx,       %eax
-                call        print_long
+                movw        %cx,        %ax
+                call        print_word
                 prints      (msg_vector)
-                movl        (%ecx),     %eax
-                call        print_long
+                movw        (%ecx),     %ax
+                call        print_word
                 prints      (_str_crlf)
                 popf
                 jz          _ret
+                jmp         1b
 
 #endif /* __KRN_S__ */
