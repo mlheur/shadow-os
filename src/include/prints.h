@@ -2,7 +2,7 @@
 #define __PRINTS_H__
 
 
-    .global strout
+    .global _strfn_out
     .global print_byte
     .global print_word
     .global savedx
@@ -11,7 +11,7 @@
 #ifdef __MBR_S__
 
 #ifndef prints
-#define prints(s)       movw $s, %si; call strout
+#define prints(s)       movw $s, %si; call _strfn_out
 #endif
 
 #ifndef printb
@@ -25,7 +25,7 @@
 #else /* __MBR_S__ */
 
 #ifndef prints
-#define prints(s)       movl $s, %esi; call strout
+#define prints(s)       movl $s, %esi; call _strfn_out
 #endif
 
 #ifndef printb

@@ -32,7 +32,7 @@ halt:           sti
                 hlt
                 jmp     halt
 /******************************************************************************/
-return:         ret /* derefence indirect "Jcc return" */
+_ret:           ret /* derefence indirect "Jcc return" */
 /******************************************************************************/
 
 /*******************************************************************************
@@ -40,13 +40,6 @@ return:         ret /* derefence indirect "Jcc return" */
  ******************************************************************************/
 msg_halting:            .asciz              "fin"
 /******************************************************************************/
-
-/*******************************************************************************
- * Import functions for console output and disk input.
- * These will stay resident under KRN_SEGM:offset
- ******************************************************************************/
-#include "prints.S"
-#include "chs_read.S"
 
 /*******************************************************************************
  * Most HDD MBRs relocate themselves to nearby, maybe cs:=0x07A0 and then load a
@@ -88,6 +81,13 @@ run_kernel:     ljmp    $KRN_SEGM,          $KRN /* Run the kernel in its code s
 /*******************************************************************************
  * End MBR function
  ******************************************************************************/
+
+/*******************************************************************************
+ * Import functions for console output and disk input.
+ * These will stay resident under KRN_SEGM:offset
+ ******************************************************************************/
+#include "prints.S"
+#include "chs_read.S"
 
 /*******************************************************************************
  * the last 2 bytes in the sector 0 must contain the signature */

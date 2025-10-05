@@ -24,8 +24,8 @@
     .text
 SHADOW_OS:      /* prints      (osname) */
                 movl        $osname, %esi
-                call        strout
-                prints      (crlf)
+                call        _strfn_out
+                prints      (_str_crlf)
                 call        DumpIVT
 FIN:            popa /* MBR saved this from the BIOS, we got here via jumps */
 RETURN_TO_BIOS: lret /* qemu seems to like lret to return to the BIOS after it (l)calls MBR */
@@ -49,8 +49,8 @@ DumpIVT:        xorl        %eax,       %eax
                 prints      (msg_vector)
                 movl        (%ecx),     %eax
                 call        print_long
-                prints(crlf)
+                prints      (_str_crlf)
                 popf
-                jz          return
+                jz          _ret
 
 #endif /* __KRN_S__ */

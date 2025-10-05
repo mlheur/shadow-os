@@ -3,19 +3,19 @@
 #define __PRINTS_S__
 
 
-crlf:           .asciz "\r\n"
+_str_crlf:      .asciz "\r\n"
 
 
 /*******************************************************************************
- * Function: strout
+ * Function: _strfn_out
  * Purpose: write a null-terminated string through altty
  * Parameters: ds:si the address of the first character
  * Outputs: None. */
-strout:         lodsb                       /* copy the character to al, increment si */
+_strfn_out:     lodsb                       /* copy the character to al, increment si */
                 testb   %al,                %al /* test if it is the null terminator */
-                jz      return
+                jz      _ret
                 call    altty
-                jmp     strout
+                jmp     _strfn_out
 /******************************************************************************/
 
 
@@ -89,7 +89,7 @@ debug_regs:     pushw   %ax
                 prints  (dbgAX)
                 popw    %ax
                 call    print_word
-                prints  (crlf)
+                prints  (_str_crlf)
                 popw    %ax
                 ret
 #endif /* DEBUG */
