@@ -15,9 +15,6 @@ clean :
 
 ${IMAGE} : ${OBJECTS}
 	ld ${LDOPTS} -o ${IMAGE} ${OBJECTS}
-	#cp ${IMAGE} .tmp
-	#dd if=.tmp of=${IMAGE} bs=512 skip=2 seek=1 count=1
-	#rm .tmp
 	./helpers/add_padding.ksh ${IMAGE}
 
 objs/mbr.o : dirs ${INCDIR}/* ./src/mbr/*
