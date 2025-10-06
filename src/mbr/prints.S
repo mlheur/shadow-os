@@ -7,15 +7,15 @@ _str_crlf:      .asciz "\r\n"
 
 
 /*******************************************************************************
- * Function: _strfn_out
+ * Function: _prints
  * Purpose: write a null-terminated string through altty
  * Parameters: ds:si the address of the first character
  * Outputs: None. */
-_strfn_out:     lodsb                       /* copy the character to al, increment si */
+_prints:        lodsb                       /* copy the character to al, increment si */
                 testb   %al,                %al /* test if it is the null terminator */
                 jz      _ret
                 call    altty
-                jmp     _strfn_out
+                jmp     _prints
 /******************************************************************************/
 
 
@@ -25,20 +25,20 @@ _strfn_out:     lodsb                       /* copy the character to al, increme
  * Purpose: convert one or two bytes into to ascii, then send it out */
 print_word:     pushw   %cx                         /* use cx as a loop counter for nibble shifting */
                 movw    $12,                %cx     /* shift 12 bits, then 8, then 4, then zero */
-savedx:         pushw   %dx                         /* use dx as a backup of ax */
-                movw    %ax,                %dx     /* make the backup */
-nibble_loop:    shrw    %cl,                %ax     /* get the nibble */
+_print_nibbles: pushl   %esi                        /* use esi as a backup of eax */
+                movl    %eax,               %esi    /* make the backup */
+1:              shrl    %cl,                %eax    /* get the nibble */
                 call    nibble_ascii
-                movw    %dx,                %ax     /* restore from backup */
+                movl    %esi,               %eax    /* restore from backup */
                 subw    $4,                 %cx     /* decrement the loop counter */
-                jnc     nibble_loop                 /* repeat until the zeroth iteration is complete and the loop counter forced a carry */
-                popw    %dx                         /* restore dx, ax is already restored */
+                jnc     1b                          /* repeat until the zeroth iteration is complete and the loop counter forced a carry */
+                popl    %esi                        /* restore esi, eax is already restored */
                 popw    %cx                         /* restore cx */
                 ret
 /******************************************************************************/
 print_byte:     pushw   %cx                         /* use cx as a loop counter for nibble shifting */
                 movw    $4,                 %cx     /* shift four bits, then zero bits */
-                jmp     savedx /* jumping bacwkward is faster than jumping forward */
+                jmp     _print_nibbles /* jumping bacwkward is faster than jumping forward */
 /******************************************************************************/
 
 

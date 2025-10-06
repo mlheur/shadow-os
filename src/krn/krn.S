@@ -25,6 +25,9 @@
 SHADOW_OS:      prints      (osname)
                 prints      (_str_crlf)
                 call        DumpIVT
+                movl        $0xdeadbeef, %eax
+                call        print_long            
+                prints      (_str_crlf)
 FIN:            popa /* MBR saved this from the BIOS, we got here via jumps */
 RETURN_TO_BIOS: lret /* qemu seems to like lret to return to the BIOS after it (l)calls MBR */
 
@@ -32,7 +35,7 @@ osname: .asciz "(SHADOW)"
 
 print_long:     pushw       %cx
                 movw        $28,            %cx
-                jmp         savedx
+                jmp         _print_nibbles
 
 msg_vec_seg:    .asciz " segment:0x"
 msg_vec_off:    .asciz " offset:0x"
