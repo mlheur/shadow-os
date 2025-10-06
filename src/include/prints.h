@@ -5,6 +5,7 @@
     .global _prints
     .global print_byte
     .global print_word
+    .global print_long
     .global _print_nibbles
 
 
@@ -34,6 +35,10 @@
 
 #ifndef printw
 #define printw(w)       movl w, %eax; call print_word
+#endif
+
+#ifndef printl
+#define printl(l)       movl l, %eax; call print_long
 #endif
 
 #endif /* __MBR_S__ */
