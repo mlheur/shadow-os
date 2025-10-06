@@ -4,7 +4,7 @@
 
     .code16
 
-#define DEBUG
+/* #define DEBUG */
 #include "globals.h"
 #include "segments.h"
 #include "prints.h"

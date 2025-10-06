@@ -19,22 +19,22 @@
  *      MBR loaded the bootdevice to 1000:0000, including itself, consequently
  *       SHADOW_OS was loaded at 1000:0200, MBR long jumps here and here we are.
  ******************************************************************************/
-    .data
+    .data /* to be discarded by the linker */
     . = 0x200
     .text
 SHADOW_OS:      prints      (osname)
                 prints      (_str_crlf)
                 call        DumpIVT
-                printl      ($0xdeadbeef)
-                prints      (_str_crlf)
+/*                printl      ($0xdeadbeef)
+                prints      (_str_crlf) */
 FIN:            popa /* MBR saved this from the BIOS, we got here via jumps */
 RETURN_TO_BIOS: lret /* qemu seems to like lret to return to the BIOS after it (l)calls MBR */
 
 osname: .asciz "(SHADOW)"
 
+msg_interrupt:  .asciz "int:0x"
 msg_vec_seg:    .asciz " segment:0x"
 msg_vec_off:    .asciz " offset:0x"
-msg_interrupt:  .asciz "int:0x"
 DumpIVT:        pusha
                 xorl        %ebx,           %ebx /* start at int 0x00 */
                 movl        %ebx,           %ecx /* use cx as copy of ds register during IVT reads */
