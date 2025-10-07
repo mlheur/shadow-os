@@ -14,8 +14,9 @@ clean :
 	rm -f ${IMAGE} ./bin/* ./objs/* ./dumps/*
 
 ${IMAGE} : ${OBJECTS}
-	ld ${LDOPTS} -o ${IMAGE} ${OBJECTS}
-	./helpers/add_padding.ksh ${IMAGE}
+	ld ${LDOPTS} -o ${IMAGE} ${OBJECTS} && \
+	./helpers/add_padding.ksh ${IMAGE} && \
+	cat ${IMAGE} fake-hda2.img > new-${IMAGE} && mv new-${IMAGE} ${IMAGE}
 
 objs/mbr.o : dirs ${INCDIR}/* ./src/mbr/*
 	gcc ${GASOPTS} -o ./objs/mbr.o ./src/mbr/mbr.S && \

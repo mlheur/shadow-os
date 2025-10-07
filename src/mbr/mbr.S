@@ -96,10 +96,16 @@ PARTITION1:
 .long   0x0000007F
 PARTITION2:
     . = 0x1CE
-.long   0x00000000
-.long   0x00000000
-.long   0x00000000
-.long   0x00000000
+.byte   0x00 /* inactive */
+.byte   0x02 /* starts on head 2 */
+.byte   0x02 /* starts on sector 2 */
+.byte   0x00 /* cylinder zero */
+.byte   0x01 /* mkfs.fat */
+.byte   0x22 /* up to head 2 (0x80 - 0x3f - 0x3f - 0x02 == 0) */
+.byte   0x22 /* just the first two sectors on head 2 */
+.byte   0x00 /* all within cylinder zero */
+.long   0x00000080
+.long   0x00000800
 PARTITION3:
     . = 0x1DE
 .long   0x00000000
