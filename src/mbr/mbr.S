@@ -68,9 +68,7 @@ MBR:
 prep_segments:  movw    %cs,                %ax /* copy the code segment address ... */
                 movw    %ax,                %ds /* ...  to data segment register for easy access to locals, such as in save_bootdev */
 save_bootdev:   movb    %dl,                chs_cmd.device /* submit the bootdevice the chs_read function's input parameters */
-init_COM1:      movw    $0xE3,              %ax /* 9600-8-None-1 */
-                xorw    %dx,                %dx /* port 0 */
-                int     $0x14               /* latch that into the serial controller's settings */
+#include "init_com1.S"
 target_krn:     movw    $KRN_SEGM,          %ax /* pass the KRN_SEGM ... */
                 movw    %ax,                %es /* ... to chs_read via es */
 read_bootdev:   call    chs_read            /* copy the bootdev to RAM */

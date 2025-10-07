@@ -7,4 +7,8 @@
 .global _halting
 
 
+#define COM1_BASE   $0x3F8
+#define OUTB(a,d)   movb a,%al; movw d,%dx; outb %al,%dx
+
+
 #endif /* __GLOBALS_H__ */

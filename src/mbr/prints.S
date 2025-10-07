@@ -8,13 +8,13 @@ _str_crlf:      .asciz "\r\n"
 
 /*******************************************************************************
  * Function: _prints
- * Purpose: write a null-terminated string through altty
+ * Purpose: write a null-terminated string through outb_com1
  * Parameters: ds:si the address of the first character
  * Outputs: None. */
 _prints:        lodsb                       /* copy the character to al, increment si */
                 testb   %al,                %al /* test if it is the null terminator */
                 jz      _ret
-                call    altty
+                call    outb_com1
                 jmp     _prints
 /******************************************************************************/
 
@@ -52,22 +52,15 @@ print_long:     pushw   %cx
 nibble_ascii:   andb    $0x0F,              %al
                 cmpb    $0x0A,              %al
                 sbbb    $0x69,              %al
-                das /* carry on to altty */
+                das /* carry on to outb_com1 */
 /*******************************************************************************
- * Function: altty
- * Purpose: send a byte out the serial port and teletype */
-altty:
+ * Function: outb_com1
+ * Purpose: send a byte out the serial port */
 outb_com1:      pushw   %dx
-                xorw    %dx,                %dx /* Serial Port 0 */
-                movb    $0x01,              %ah /* "send" command */
-                int     $0x14
+                movw    COM1_BASE,          %dx
+                outb    %al,                %dx
                 popw    %dx
-outb_tty:       pushw   %bx
-                movw    $0x0001,            %bx /* bh=page,bl=fg_colour */
-                movb    $0x0e,              %ah /* "tty out" VGA command */
-                int     $0x10
-                popw    %bx
-altty_end:      ret
+                ret
 /******************************************************************************/
 
 
