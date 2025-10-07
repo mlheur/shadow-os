@@ -30,13 +30,14 @@ drvdata:
 drvdata.cylsec:         .word 0
 drvdata.head:           .byte 0
 drvdata_sz = . - drvdata
+#ifdef DEBUG
 /*******************************************************************************
  * String resources
  ******************************************************************************/
 msg_chs_failed:         .asciz              "CHS:AX="
 msg_chs_overflow:       .asciz              "OF"
 /******************************************************************************/
-
+#endif
 
 /*******************************************************************************
  * Subroutines
@@ -46,17 +47,23 @@ msg_chs_overflow:       .asciz              "OF"
 /*******************************************************************************
  * Error handling for chs_read function
  ******************************************************************************/
+#ifdef DEBUG
 chs_overflow:   prints  (msg_chs_overflow)
-                jmp     _hlt
+                hlt
+#else /* DEBUG */
+chs_overflow:   hlt
+#endif /* DEBUG */
 
 /******************************************************************************/
 chs_failed:     movw    %ax,                %bx /* make a backup of ax */
                 subb    $0x0C,              %ah /* return code 0x0C seems to mean we tried to read a CHS address that doesn't exist.  After this subtraction, al holds the number of sectors that were read before 0x0C was triggered */
                 jz      adv_buf_ptr         /* handle successful read of those sectors */
+#ifdef DEBUG
                 prints  (msg_chs_failed)    /* else fall through to the uncorrectable error handling routine */
                 movw    %bx,                %ax /* restore from backup */
                 call    print_word          /* give some feedback */
-                jmp     _hlt                /* unhandled error */
+#endif /* DEBUG */
+                hlt                         /* unhandled error */
 
 
 /*******************************************************************************
