@@ -72,7 +72,9 @@ save_bootdev:   movb    %dl,                chs_cmd.device /* submit the bootdev
 target_krn:     movw    $KRN_SEGM,          %ax /* pass the KRN_SEGM ... */
                 movw    %ax,                %es /* ... to chs_read via es */
 read_bootdev:   call    chs_read            /* copy the bootdev to RAM */
-pass_bootdevid: movzbw  chs_cmd.device,     %dx /* pass bootdev id on to the kernel via dl */
+pass_bootdevid: movzbl  chs_cmd.device,     %edx /* pass bootdev id on to the kernel via dl */
+pass_partition: movw    $PARTITION1,        %ax
+                movzwl  %ax,                %esi
 run_kernel:     ljmp    $KRN_SEGM,          $KRN /* Run the kernel in its code segment */
 /*******************************************************************************
  * End MBR function
@@ -84,6 +86,41 @@ run_kernel:     ljmp    $KRN_SEGM,          $KRN /* Run the kernel in its code s
  ******************************************************************************/
 #include "prints.S"
 #include "chs_read.S"
+
+/*******************************************************************************
+ * https://wiki.osdev.org/Partition_Table */
+    . = 0x1BE /* Part 1 */
+PARTITION1:
+.byte   0x80 /* active */
+.byte   0x00 /* starts on head 0 */
+.byte   0x02 /* starts on sector 2, mbr is on 1 */
+.byte   0x00 /* cylinder zero */
+.byte   0xda /* shadow-os.img format, I agree with John Hardin https://aeb.win.tue.nl/partitions/partition_types-1.html */
+.byte   0x02 /* up to head 2 (0x80 - 0x3f - 0x3f - 0x02 == 0) */
+.byte   0x01 /* just the first two sectors on head 2 */
+.byte   0x00 /* all within cylinder zero */
+.long   0x00000001
+.long   0x0000007F
+PARTITION2:
+    . = 0x1CE
+.long   0x00000000
+.long   0x00000000
+.long   0x00000000
+.long   0x00000000
+PARTITION3:
+    . = 0x1DE
+.long   0x00000000
+.long   0x00000000
+.long   0x00000000
+.long   0x00000000
+PARTITION4:
+    . = 0x1EE
+.long   0x00000000
+.long   0x00000000
+.long   0x00000000
+.long   0x00000000
+/******************************************************************************/
+
 
 /*******************************************************************************
  * the last 2 bytes in the sector 0 must contain the signature */

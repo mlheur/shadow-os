@@ -13,10 +13,11 @@
  *  Power on the computer
  *   CPU sets its initial vector, somehwere in the BIOS ROM
  *    BIOS reads CMOS data, chooses a boot device, reads its first sector
+ *     QEMU uses a stack limit 0000:6FFFF and below
  *     BIOS puts that sector in RAM at 0x7C00 and long calls the MBR
+ *      MBR loaded the bootdevice to 1000:0000, size 64KiB
  *      MBR passes the bootdevice ID to SHADOW_OS via dl register
- *      MBR sets the cs and ds registers to 1000 before jumping to SHADOW_OS
- *      MBR loaded the bootdevice to 1000:0000, including itself, consequently
+ *      MBR passes the selected partition table to SHADOW_OS via ds:si registers
  *       SHADOW_OS was loaded at 1000:0200, MBR long jumps here and here we are.
  ******************************************************************************/
     .data /* to be discarded by the linker */
