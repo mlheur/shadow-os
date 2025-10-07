@@ -4,6 +4,7 @@
 
 .global _str_crlf
 .global _ret
+.global _halting
 
 
 #endif /* __GLOBALS_H__ */

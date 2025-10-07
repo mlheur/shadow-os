@@ -27,7 +27,7 @@
 _start:         pusha /* preserve BIOS registers, KRN will restore pre-lret */
 jump_mbr_segm:  ljmp    $MBR_SEGM,          $MBR /* Run the MBR into KRN */
 /******************************************************************************/
-halting:        prints  (msg_halting)
+_halting:       prints  (msg_halting)
 halt:           sti
                 hlt
                 jmp     halt
