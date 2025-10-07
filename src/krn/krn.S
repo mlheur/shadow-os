@@ -22,14 +22,21 @@
     .data /* to be discarded by the linker */
     . = 0x200
     .text
-SHADOW_OS:      prints      (osname)
-                prints      (_str_crlf)
-                call        DumpIVT
-FIN:            popa /* MBR saved this from the BIOS, we got here via jumps */
-RETURN_TO_BIOS: lret /* qemu seems to like lret to return to the BIOS after it (l)calls MBR */
+_kernel:        movw    %cs,        %ax
+                movw    %ax,        %ds
+                movw    %ax,        %es
+                movw    %ax,        %fs
+                movw    %ax,        %gs
+SHADOW_OS:      prints  (osname)
+                prints  (_str_crlf)
+                call    DumpIVT
+                call    DumpRAM
+FIN:            popa    /* MBR saved this from the BIOS, we got here via jumps */
+RETURN_TO_BIOS: lret    /* qemu seems to like lret to return to the BIOS after it (l)calls MBR */
 
 osname: .asciz "(SHADOW)"
 
 #include "ivt.S"
+#include "ram.S"
 
 #endif /* __KRN_S__ */
