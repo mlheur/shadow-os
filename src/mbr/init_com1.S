@@ -36,7 +36,7 @@ OUTB    ($0x1E, COM1_MODM_CTL)  /* enter loopback mode */
 OUTB    ($0xAE, COM1_BUFFER)    /* send some data */
 inb     %dx,    %al             /* receive the btye, dx still still set from OUTB */
 cmpb    $0xAE,  %al             /* check if it was the one we sent */
-jne     _halting                /* or bail */
+jne     _hlt                    /* or bail */
 OUTB    ($0x0F, COM1_MODM_CTL)  /* disable loopback mode, assert both Out pins */
 
 #endif /* AVOID_INTERRUPTS */

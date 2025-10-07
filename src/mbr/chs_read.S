@@ -47,7 +47,7 @@ msg_chs_overflow:       .asciz              "OF"
  * Error handling for chs_read function
  ******************************************************************************/
 chs_overflow:   prints  (msg_chs_overflow)
-                jmp     halt
+                jmp     _hlt
 
 /******************************************************************************/
 chs_failed:     movw    %ax,                %bx /* make a backup of ax */
@@ -56,7 +56,7 @@ chs_failed:     movw    %ax,                %bx /* make a backup of ax */
                 prints  (msg_chs_failed)    /* else fall through to the uncorrectable error handling routine */
                 movw    %bx,                %ax /* restore from backup */
                 call    print_word          /* give some feedback */
-                jmp     halt                /* unhandled error */
+                jmp     _hlt                /* unhandled error */
 
 
 /*******************************************************************************

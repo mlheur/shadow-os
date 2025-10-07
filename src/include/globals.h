@@ -4,7 +4,7 @@
 
 .global _str_crlf
 .global _ret
-.global _halting
+.global _hlt
 
 
 #define COM1_BASE   $0x3F8

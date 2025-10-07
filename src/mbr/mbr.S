@@ -25,20 +25,12 @@
  ******************************************************************************/
     .text
 _start:         pusha /* preserve BIOS registers, KRN will restore pre-lret */
-jump_mbr_segm:  ljmp    $MBR_SEGM,          $MBR /* Run the MBR into KRN */
+jump_mbr_segm:  ljmp    $MBR_SEGM,      $MBR /* Run the MBR into KRN */
 /******************************************************************************/
-_halting:       prints  (msg_halting)
-halt:           sti
+_ret:           ret /* derefence indirect "Jcc _ret" */
+_hlt:           sti
                 hlt
-                jmp     halt
-/******************************************************************************/
-_ret:           ret /* derefence indirect "Jcc return" */
-/******************************************************************************/
-
-/*******************************************************************************
- * Static Data
- ******************************************************************************/
-msg_halting:            .asciz              "fin"
+                jmp _hlt
 /******************************************************************************/
 
 /*******************************************************************************
@@ -65,19 +57,19 @@ msg_halting:            .asciz              "fin"
  *   all addressing */
 
 MBR:
-prep_segments:  movw    %cs,                %ax /* copy the code segment address ... */
-                movw    %ax,                %ds /* ...  to data segment register for easy access to locals, such as in save_bootdev */
-save_bootdev:   movb    %dl,                chs_cmd.device /* submit the bootdevice the chs_read function's input parameters */
+prep_segments:  pushw   %cs             /* copy cs to ds via stack, it's slower then ... */
+                popw    %ds             /* ... using a register, but makes for smaller assembly. */
+save_bootdev:   movb    %dl,            chs_cmd.device /* submit the bootdevice the chs_read function's input parameters */
 #include "init_com1.S"
-target_krn:     movw    $KRN_SEGM,          %ax /* pass the KRN_SEGM ... */
-                movw    %ax,                %es /* ... to chs_read via es */
-read_bootdev:   call    chs_read            /* copy the bootdev to RAM */
+target_krn:     pushw   $KRN_SEGM       /* pass the KRN_SEGM ... */
+                popw    %es             /* ... to chs_read via es */
+read_bootdev:   call    chs_read        /* copy the bootdev to RAM */
 #ifdef PORTABLE_MBR
-pass_bootdevid: movzbl  chs_cmd.device,     %edx /* pass bootdev id on to the kernel via dl */
-pass_partition: movw    $PARTITION1,        %ax
-                movzwl  %ax,                %esi
+pass_bootdevid: movzbl  chs_cmd.device, %edx /* pass bootdev id on to the kernel via dl */
+pass_partition: movw    $PARTITION1,    %ax
+                movzwl  %ax,            %esi
 #endif
-run_kernel:     ljmp    $KRN_SEGM,          $KRN /* Run the kernel in its code segment */
+run_kernel:     ljmp    $KRN_SEGM,      $KRN /* Run the kernel in its code segment */
 /*******************************************************************************
  * End MBR function
  ******************************************************************************/
