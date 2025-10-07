@@ -40,10 +40,6 @@ print_byte:     pushw   %cx                         /* use cx as a loop counter 
                 movw    $4,                 %cx     /* shift four bits, then zero bits */
                 jmp     _print_nibbles /* jumping bacwkward is faster than jumping forward */
 /******************************************************************************/
-print_long:     pushw   %cx
-                movw    $28,                %cx
-                jmp     _print_nibbles
-/******************************************************************************/
 
 
 /*******************************************************************************

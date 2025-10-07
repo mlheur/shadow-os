@@ -72,9 +72,11 @@ save_bootdev:   movb    %dl,                chs_cmd.device /* submit the bootdev
 target_krn:     movw    $KRN_SEGM,          %ax /* pass the KRN_SEGM ... */
                 movw    %ax,                %es /* ... to chs_read via es */
 read_bootdev:   call    chs_read            /* copy the bootdev to RAM */
+#ifdef PORTABLE_MBR
 pass_bootdevid: movzbl  chs_cmd.device,     %edx /* pass bootdev id on to the kernel via dl */
 pass_partition: movw    $PARTITION1,        %ax
                 movzwl  %ax,                %esi
+#endif
 run_kernel:     ljmp    $KRN_SEGM,          $KRN /* Run the kernel in its code segment */
 /*******************************************************************************
  * End MBR function

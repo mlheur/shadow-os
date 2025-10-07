@@ -2,9 +2,13 @@
 #ifndef __INIT_COM1_S__
 #define __INIT_COM1_S__
 
-/*init_COM1:    movw    $0xE3,  %ax /* 9600-8-None-1 */
-/*              xorw    %dx,    %dx /* port 0 */
-/*              int     $0x14   /* latch that into the serial controller's settings */
+#ifndef AVOID_INTERRUPTS
+
+init_COM1:  movw        $0x0003,    %ax /* 19200-8-None-1 */
+            xorw        %dx,        %dx /* port 0 */
+            int         $0x14       /* latch that into the serial controller's settings */
+
+#else /* AVOID_INTERRUPTS */
 
 #define COM1_BUFFER     COM1_BASE+0
 #define COM1_IRQ_STAT   COM1_BASE+1
@@ -20,6 +24,7 @@
 
 /* plagarized from https://wiki.osdev.org/Serial_Ports, but I typed it myself */
 
+init_COM1:
 OUTB    ($0x00, COM1_IRQ_STAT)  /* inhibit interrupts */
 OUTB    ($0x80, COM1_LINE_CTL)  /* DLAB ON */
 OUTB    ($0x01, COM1_DIV_LO)    /* Max baud */
@@ -33,5 +38,7 @@ inb     %dx,    %al             /* receive the btye, dx still still set from OUT
 cmpb    $0xAE,  %al             /* check if it was the one we sent */
 jne     _halting                /* or bail */
 OUTB    ($0x0F, COM1_MODM_CTL)  /* disable loopback mode, assert both Out pins */
+
+#endif /* AVOID_INTERRUPTS */
 
 #endif /*  __INIT_COM1_S__ */

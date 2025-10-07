@@ -14,4 +14,24 @@
 /* F000:0000 until F000:FFFF Motherboard BIOS */
 /******************************************************************************/
 
+/*******************************************************************************
+ * Thoughts:
+ * - 0x0nnnn reserved for BIOS and MBR; if the OS is going to lret back
+ *   to the BIOS then we have to protect the stack that was used before it
+ *   lcalled MBR.
+ *   I might consider using some available sections for numerous kernel flags,
+ *   and/or transient data; similar to Vic-20 zero page variables.
+ * - 0x1nnnn: the bootdevice was loaded here, essentially a 64KiB kernel
+ * - 0x2nnnn: 
+ * - 0x3nnnn:
+ * - 0x4nnnn:
+ * - 0x5nnnn:
+ * - 0x6nnnn:
+ * - 0x7nnnn:
+ * Above this, EBDA, VRAM, BIOS-Exp, VGA-BIOS and MOBO-BIOS.
+ * It is also reasonable to wish to reclaim the memory from 0xA0000 to 0xFFFFF
+ * and make your RAM contiguous. Again the answer is disappointing: Forget about
+ * it.
+ ******************************************************************************/
+
 #endif /* __SEGMENTS_H__ */

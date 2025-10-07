@@ -34,8 +34,19 @@ SHADOW_OS:      prints  (osname)
                 call    DumpRAM
 FIN:            popa    /* MBR saved this from the BIOS, we got here via jumps */
 RETURN_TO_BIOS: lret    /* qemu seems to like lret to return to the BIOS after it (l)calls MBR */
+/******************************************************************************/
 
+
+/******************************************************************************/
 osname: .asciz "(SHADOW)"
+/******************************************************************************/
+
+
+/******************************************************************************/
+print_long:     pushw   %cx
+                movw    $28,                %cx
+                jmp     _print_nibbles
+/******************************************************************************/
 
 #include "ivt.S"
 #include "ram.S"
