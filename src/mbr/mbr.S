@@ -65,9 +65,8 @@ target_krn:     pushw   $KRN_SEGM       /* pass the KRN_SEGM ... */
 read_bootdev:   call    chs_read        /* copy the bootdev to RAM */
 #ifdef PORTABLE_MBR
 pass_bootdevid: movzbl  chs_cmd.device, %edx /* pass bootdev id on to the kernel via dl */
-pass_partition: movw    $PARTITION1,    %ax
-                movzwl  %ax,            %esi
-#endif
+pass_partition: pushw   $PARTITION1
+                popw    %si
 run_kernel:     ljmp    $KRN_SEGM,      $KRN /* Run the kernel in its code segment */
 /*******************************************************************************
  * End MBR function
