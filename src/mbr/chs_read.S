@@ -1,7 +1,7 @@
 #ifndef __CHS_READ_S__
 #define __CHS_READ_S__
 
-
+#include "chs_read.h"
 #include "stack_offsets.h"
 #define PUSHED_ES       2+PUSHED_AX
 
@@ -25,14 +25,6 @@
  ******************************************************************************/
 
 
-/*******************************************************************************
- * Private local data, to inquire limits before reading the device
- ******************************************************************************/
-drvdata:
-drvdata.cylsec:         .word 0
-drvdata.head:           .byte 0
-
-
 /******************************************************************************/
 chs_failed:     subb    $0x0C,          %ah /* return code 0x0C tried to read past end of disk, this might be OK */
                 jz      adv_buf_ptr     /* handle successful read of those sectors */
@@ -47,7 +39,7 @@ chs_return:     del_stack_frame
  * Each of the three wrappers below will set the whole CHS struct appropriately,
  * and jump to the next load_registers iteration.
  ******************************************************************************/
-wrap_head:      movzbw  drvdata.head,   %bx /* get the metric against which we'll test limits */
+_chs_head:      movzbw  0xFF,           %bx /* get the metric against which we'll test limits, FF will be replaced at runtime when writing to drvdata.head */
                 movzbw  SAVED_HEAD,     %ax /* get the current value */
                 subw    %ax,            %bx /* if the limit is reached ... */
                 jz      wrap_cylinder   /* ... wrap the cylinder instead, it will reset the head and sector */
@@ -66,10 +58,10 @@ wrap_sector:    movw    SAVED_CYLSEC,   %ax /* get the 16-bit mangled cylsec add
                 movzbw  SAVED_READLEN,  %bx /* recall how many sectors were successfully read */
                 addw    %bx,            %ax /* advance the sector pointer that much ... */
 /* we advanced sectors by 1 **OR MORE**, check if we exceeded the sector limit */
-                movw    drvdata.cylsec, %cx /* get the last sector valid sector ID */
+_chs_cylsec:    movw    $0xFF,          %cx /* get the last sector valid sector ID; FF will be replaced at runtime when writing to drvdata.cylsec */
                 andw    $0x003F,        %cx /* filter just the 6-bit sector portion */
                 subw    %ax,            %cx /* compare the calculated sector ID against the limit, destroys cx */
-                jb      wrap_head       /* if ax is bigger than cx then the limit was exceeded, wrap to the next head */
+                jb      _chs_head       /* if ax is bigger than cx then the limit was exceeded, wrap to the next head */
                 movw    %ax,            SAVED_CYLSEC /* else the calculated sector ID is valid, commit it */
                 jmp     load_registers  /* go read the new sector(s) */
 /******************************************************************************/
@@ -102,7 +94,7 @@ wrap_cylinder:  movb    $0,             SAVED_HEAD /* reset head to zero */
  *  ah: the start head to read from
  *  al: the number of sectors to read per IOP
  ******************************************************************************/
-chs_read:       pushw   %es
+_chs_read:      pushw   %es
                 new_stack_frame
 /* Inquire from the BIOS: what are the CHS limits of the boot device,
  * those are needed throughout the CHS incrementer */

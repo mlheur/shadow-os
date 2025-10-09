@@ -4,8 +4,8 @@
 
 /* https://www.felixcloutier.com/x86/pusha:pushad */
 /* ax(16), cx(14), dx(12), bx(10), sp(8), bp(6), si(4), di(2) */
-#define new_stack_frame pusha; pushw %bp; movw %sp, %bp
-#define del_stack_frame movw %bp, %sp; popw %bp; popa
+#define new_stack_frame pushaw; pushw %bp; movw %sp, %bp
+#define del_stack_frame movw %bp, %sp; popw %bp; popaw
 
 
 #define PUSHED_DI   2(%bp)

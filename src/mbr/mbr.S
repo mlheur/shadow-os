@@ -71,6 +71,37 @@ $ hexdump -C bin/objcopy-mbr
 000001f0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 55 aa  |..............U.|
 00000200
 
+######## Even smaller after using self-modifying code for drvdata entries
+
+$ hexdump -C bin/objcopy-mbr 
+00000000  60 ea 09 00 c0 07 c3 fb  f4 0e 1f 52 b8 03 00 31  |`..........R...1|
+00000010  d2 cd 14 5a 30 f6 68 00  10 07 bf 00 10 b9 01 00  |...Z0.h.........|
+00000020  31 db b0 80 e8 fe ff ea  00 02 00 10 0d 0a 00 ac  |1...............|
+00000030  84 c0 74 d2 e8 2a 00 eb  f6 51 b9 0c 00 66 56 66  |..t..*...Q...fVf|
+00000040  89 c6 66 d3 e8 e8 12 00  66 89 f0 83 e9 04 73 f2  |..f.....f.....s.|
+00000050  66 5e 59 c3 51 b9 04 00  eb e3 24 0f 3c 0a 1c 69  |f^Y.Q.....$.<..i|
+00000060  2f 52 ba f8 03 ee 5a c3  80 ec 0c 0f 84 9e 00 89  |/R....Z.........|
+00000070  ec 5d 61 07 c3 0f b6 1e  ff 00 0f b6 46 0d 29 c3  |.]a.........F.).|
+00000080  74 2f 04 01 88 46 0d 8b  46 0e 83 e0 c0 f7 d9 00  |t/...F..F.......|
+00000090  c8 88 46 0e eb 63 8b 46  0e 83 e0 3f 0f b6 5e 10  |..F..c.F...?..^.|
+000000a0  01 d8 b9 ff 00 83 e1 3f  29 c1 72 c9 89 46 0e eb  |.......?).r..F..|
+000000b0  48 c6 46 0d 00 8b 46 0e  83 e0 c0 8b 1e 00 00 83  |H.F...F.........|
+000000c0  e3 c0 29 c3 f4 c0 c0 02  86 c4 83 c0 01 25 ff 03  |..)..........%..|
+000000d0  86 e0 c0 c8 02 eb b6 06  60 55 89 e5 31 c0 8e c0  |........`U..1...|
+000000e0  89 c7 b4 08 cd 13 88 36  00 00 89 0e 00 00 8e 46  |.......6.......F|
+000000f0  12 8c c3 01 5e 02 8a 56  0c 8a 76 0d 8b 4e 0e 8b  |....^..V..v..N..|
+00000100  5e 0a 8a 46 10 b4 02 cd  13 0f 82 5b ff c1 e0 05  |^..F.......[....|
+00000110  8c c3 01 c3 8e c3 c1 e8  05 38 46 10 75 07 2b 5e  |.........8F.u.+^|
+00000120  02 0f 82 71 ff e9 47 ff  00 00 00 00 00 00 00 00  |...q..G.........|
+00000130  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+000001b0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 80 00  |................|
+000001c0  02 00 da 02 01 00 01 00  00 00 7f 00 00 00 00 02  |................|
+000001d0  02 00 01 22 22 00 80 00  00 00 00 08 00 00 00 00  |...""...........|
+000001e0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+000001f0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 55 aa  |..............U.|
+00000200
+
 
 */
 
@@ -132,7 +163,7 @@ read_64KiB:     movw    $0x1000,        %di /* Stop reading when es is advanced 
                 movw    $1,             %cx /* start a cylsec 0,1 */
                 xorw    %bx,            %bx /* write starting at offset 0 */
                 movb    $0x80,          %al /* ah=XX unused, al=0x80 read 128 sectors at a time */
-read_bootdev:   call    chs_read        /* copy the bootdev to RAM */
+read_bootdev:   call    _chs_read       /* copy the bootdev to RAM */
 #ifdef PORTABLE_MBR
 pass_bootdevid: movzbl  chs_cmd.device, %edx /* pass bootdev id on to the kernel via dl */
 pass_partition: pushw   $PARTITION1
