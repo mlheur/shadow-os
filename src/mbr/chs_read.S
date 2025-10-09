@@ -20,9 +20,8 @@
  *    that _the next_ increment will exceed initial_es+readlimit, we need to
  *    decrease readlen accordingly.  Find a way to do this branchlessly, the MBR
  *    currently has ~50 bytes free space.
- * 2: Turn chs_read into a proper function with stack pushing of parameters.
- *    es needs to be added as input paremeter, with bootdev.
- *    https://wiki.osdev.org/System_V_ABI
+ * 2: Create self-modifying code such that drvdata values are inserted in the
+ *    opcodes instructions using dot-relative addresses.
  ******************************************************************************/
 
 
