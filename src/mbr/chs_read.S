@@ -1,189 +1,163 @@
-    .file "chrs_read.S"
 #ifndef __CHS_READ_S__
 #define __CHS_READ_S__
 
+#include "chs_read.h"
+#include "stack_offsets.h"
+#define PUSHED_ES       2+PUSHED_AX
+
+#define SAVED_READLEN   PUSHED_AL
+#define SAVED_CYLSEC    PUSHED_CX
+#define SAVED_HEAD      PUSHED_DH
+#define SAVED_DRIVE     PUSHED_DL
+#define SAVED_OFFSET    PUSHED_BX
+#define SAVED_SEGMENT   PUSHED_ES
+#define SAVED_READLIMIT PUSHED_DI
+
+
 /*******************************************************************************
  * TODO:
- 1: prevent overreading when nearing the end.  When es is advanced far enough
-    that _the next_ increment will exceed initial_es+readlimit, we need to
-    decrease readlen accordingly.  Find a way to do this branchlessly, the MBR
-    currently has ~50 bytes free space.
- 2: Turn chs_read into a proper function with stack pushing of parameters.
-    es needs to be added as input paremeter, with bootdev.
+ * 1: prevent overreading when nearing the end.  When es is advanced far enough
+ *    that _the next_ increment will exceed initial_es+readlimit, we need to
+ *    decrease readlen accordingly.  Find a way to do this branchlessly, the MBR
+ *    currently has ~50 bytes free space.
+ * 2: Create self-modifying code such that drvdata values are inserted in the
+ *    opcodes instructions using dot-relative addresses.
  ******************************************************************************/
 
-
-/*******************************************************************************
- * Input Data from caller
- ******************************************************************************/
-chs_cmd:
-chs_cmd.device:         .byte 0 /* will be filled in by MBR caller, passed from BIOS */
-chs_cmd.cylsec:         .word 1 /* seek sector 1 */
-chs_cmd.head:           .byte 0 /* seek head 0 */
-chs_cmd.readlen:        .byte 0x80 /* in & out, must be non-zero inbound */
-chs_cmd.readlimit:      .word 0x1000 /* boot device is 64 KiB */
-chs_cmd_sz = . - chs_cmd
-/*******************************************************************************
- * Private local data, to inquire limits before reading the device
- ******************************************************************************/
-drvdata:
-drvdata.cylsec:         .word 0
-drvdata.head:           .byte 0
-drvdata_sz = . - drvdata
-/*******************************************************************************
- * String resources
- ******************************************************************************/
-msg_chs_failed:         .asciz              "CHS:AX="
-msg_chs_overflow:       .asciz              "OF"
-/******************************************************************************/
-
-
-/*******************************************************************************
- * Subroutines
- ******************************************************************************/
-
-
-/*******************************************************************************
- * Error handling for chs_read function
- ******************************************************************************/
-chs_overflow:   prints  (msg_chs_overflow)
-                jmp     halt
 
 /******************************************************************************/
-chs_failed:     movw    %ax,                %bx /* make a backup of ax */
-                subb    $0x0C,              %ah /* return code 0x0C seems to mean we tried to read a CHS address that doesn't exist.  After this subtraction, al holds the number of sectors that were read before 0x0C was triggered */
-                jz      adv_buf_ptr         /* handle successful read of those sectors */
-                prints  (msg_chs_failed)    /* else fall through to the uncorrectable error handling routine */
-                movw    %bx,                %ax /* restore from backup */
-                call    print_word          /* give some feedback */
-                jmp     halt                /* unhandled error */
+chs_failed:     subb    $0x0C,          %ah /* return code 0x0C tried to read past end of disk, this might be OK */
+                jz      adv_buf_ptr     /* handle successful read of those sectors */
+/******************************************************************************/
+chs_return:     del_stack_frame
+                popw    %es
+                ret
+/******************************************************************************/
 
 
 /*******************************************************************************
  * Each of the three wrappers below will set the whole CHS struct appropriately,
  * and jump to the next load_registers iteration.
  ******************************************************************************/
-wrap_head:      movzbw  drvdata.head,       %bx /* get the metric against which we'll test limits */
-                movzbw  chs_cmd.head,       %ax /* get the current value */
-                subw    %ax,                %bx /* if the limit is reached ... */
-                jz      wrap_cylinder       /* ... wrap the cylinder instead, it will reset the head and sector */
-                addb    $1,                 %al /* else increment the head */
-                movb    %al,                chs_cmd.head /* and save it back */
-                movw    chs_cmd.cylsec,     %ax /* pull up the mangled cylsec ... */
-                andw    $0xFFC0,            %ax /* ... so we can keep the cylinder bits ... */
-remaining_secs: negw    %cx                 /* we have to further advance the sectors by this much, figured in the subw instruction of wrap_sector */
-                addb    %cl,                %al /* add that many more to the sector ID */
-                movb    %al,                chs_cmd.cylsec /* finally save the sector ID back to the CHS struct */
-                jmp     load_registers            /* and go read it */
+_chs_head:      movzbw  0xFF,           %bx /* get the metric against which we'll test limits, FF will be replaced at runtime when writing to drvdata.head */
+                movzbw  SAVED_HEAD,     %ax /* get the current value */
+                subw    %ax,            %bx /* if the limit is reached ... */
+                jz      wrap_cylinder   /* ... wrap the cylinder instead, it will reset the head and sector */
+                addb    $1,             %al /* else increment the head */
+                movb    %al,            SAVED_HEAD /* and save it back */
+                movw    SAVED_CYLSEC,   %ax /* pull up the mangled cylsec ... */
+                andw    $0xFFC0,        %ax /* ... so we can keep the cylinder bits ... */
+remaining_secs: negw    %cx             /* we have to further advance the sectors by this much, figured in the subw instruction of wrap_sector */
+                addb    %cl,            %al /* add that many more to the sector ID */
+                movb    %al,            SAVED_CYLSEC /* finally save the sector ID back to the CHS struct */
+                jmp     load_registers  /* and go read it */
 /******************************************************************************/
 
-wrap_sector:    movw    chs_cmd.cylsec,     %ax /* get the 16-bit mangled cylsec address that was just read from */
-                andw    $0x003F,            %ax /* filter the 6-bit sector portion */
-                movzbw  chs_cmd.readlen,    %bx /* recall how many sectors were successfully read */
-                addw    %bx,                %ax /* advance the sector pointer that much ... */
+wrap_sector:    movw    SAVED_CYLSEC,   %ax /* get the 16-bit mangled cylsec address that was just read from */
+                andw    $0x003F,        %ax /* filter the 6-bit sector portion */
+                movzbw  SAVED_READLEN,  %bx /* recall how many sectors were successfully read */
+                addw    %bx,            %ax /* advance the sector pointer that much ... */
 /* we advanced sectors by 1 **OR MORE**, check if we exceeded the sector limit */
-                movw    drvdata.cylsec,     %cx /* get the last sector valid sector ID */
-                andw    $0x003F,            %cx /* filter just the 6-bit sector portion */
-                subw    %ax,                %cx /* compare the calculated sector ID against the limit, destroys cx */
-                jb      wrap_head           /* if ax is bigger than cx then the limit was exceeded, wrap to the next head */
-                movw    %ax,                chs_cmd.cylsec /* else the calculated sector ID is valid, commit it */
-                jmp     load_registers            /* go read the new sector(s) */
+_chs_cylsec:    movw    $0xFF,          %cx /* get the last sector valid sector ID; FF will be replaced at runtime when writing to drvdata.cylsec */
+                andw    $0x003F,        %cx /* filter just the 6-bit sector portion */
+                subw    %ax,            %cx /* compare the calculated sector ID against the limit, destroys cx */
+                jb      _chs_head       /* if ax is bigger than cx then the limit was exceeded, wrap to the next head */
+                movw    %ax,            SAVED_CYLSEC /* else the calculated sector ID is valid, commit it */
+                jmp     load_registers  /* go read the new sector(s) */
 /******************************************************************************/
 
-wrap_cylinder:  movb    $0,                 chs_cmd.head /* reset head to zero */
-                movw    chs_cmd.cylsec,     %ax /* get the current mangled address */
-                andw    $0xFFC0,            %ax /* filter out sectors to zero */
-                movw    drvdata.cylsec,     %bx /* get the metric against which we'll test the limits */
-                andw    $0xFFC0,            %bx /* filter out sectors to zero */
-                subw    %ax,                %bx /* check if the limit is reached */
-                jz      chs_overflow        /* unable to read past end of disk */
-                rolb    $2,                 %al /* mangled cylsec sits in ax, filtered in the cyl bits */
-                xchgb   %al,                %ah /* put the cylinder portion as LSB */
-                addw    $1,                 %ax /* increment the cylinder */
-                andw    $0x03FF,            %ax /* filter any overflow */
-                xchgb   %ah,                %al /* remangle the cylsec */
-                rorb    $2,                 %al /* suffle zeroed sectors to lsb */
-                jmp     remaining_secs      /* and we're done */
+wrap_cylinder:  movb    $0,             SAVED_HEAD /* reset head to zero */
+                movw    SAVED_CYLSEC,   %ax /* get the current mangled address */
+                andw    $0xFFC0,        %ax /* filter out sectors to zero */
+                movw    drvdata.cylsec, %bx /* get the metric against which we'll test the limits */
+                andw    $0xFFC0,        %bx /* filter out sectors to zero */
+                subw    %ax,            %bx /* check if the limit is reached */
+                hlt                     /* unable to read past end of disk */
+                rolb    $2,             %al /* mangled cylsec sits in ax, filtered in the cyl bits */
+                xchgb   %al,            %ah /* put the cylinder portion as LSB */
+                addw    $1,             %ax /* increment the cylinder */
+                andw    $0x03FF,        %ax /* filter any overflow */
+                xchgb   %ah,            %al /* remangle the cylsec */
+                rorb    $2,             %al /* suffle zeroed sectors to lsb */
+                jmp     remaining_secs  /* and we're done */
 /******************************************************************************/
 
 
 /*******************************************************************************
  * inputs:
- *  es: the place in memory to save the data
- *  chs_cmd.device: the device to read from
- *  chs_cmd.cylsec: the starting sector and cylinder in mangled form
- *  chs_cmd.head: the start head to read from
- *  chs_cmd.readlen: the number of sectors to read per IOP
- *  chs_cmd.readlimit: the segment limit es can grow to.
+ *  es: segment register for write operation
+ *  di: stop reading when es advanced this much
+ *  dh: the first head to read from
+ *  dl: the disk/drive device to read from
+ *  cx: the starting sector and cylinder in mangled form
+ *  bx: the offset from es for the write opeartion
+ *  ah: the start head to read from
+ *  al: the number of sectors to read per IOP
  ******************************************************************************/
-chs_read:       pusha
-                movw    %es,                %bx /* hold onto this for now */
+_chs_read:      pushw   %es
+                new_stack_frame
 /* Inquire from the BIOS: what are the CHS limits of the boot device,
  * those are needed throughout the CHS incrementer */
-inquire_geom:   xorw    %ax,                %ax /* get a zero */
-                movw    %ax,                %es /* to guard against BIOS bugs */
-                movw    %ax,                %di /* to guard against BIOS bugs */
-                movb    $0x08,              %ah /* "CHS inquire" command */
-                movb    chs_cmd.device,     %dl /* inquire for the boot device */
-                int     $0x13               /* submit the inquiry */
+inquire_geom:   xorw    %ax,            %ax /* get a zero */
+                movw    %ax,            %es /* to guard against BIOS bugs */
+                movw    %ax,            %di /* to guard against BIOS bugs */
+                movb    $0x08,          %ah /* "CHS inquire" command */
+                int     $0x13           /* submit the inquiry */
 /* https://fd.lod.bz/rbil/interrup/bios/1308.html
-         AH = 00h
-         AL = 00h on at least some BIOSes
-         BL = drive type (AT/PS2 floppies only) (see #00242)
-         CH = low eight bits of maximum cylinder number
-         CL = maximum sector number (bits 5-0)
-           high two bits of maximum cylinder number (bits 7-6)
-         DH = maximum head number
-         DL = number of drives
-         ES:DI -> drive parameter table (floppies only) */
-save_heads:     movb    %dh,                drvdata.head
-save_cylsec:    movw    %cx,                drvdata.cylsec
-                movw    %bx,                %es /* get it back */
-set_readlimit:  addw    %bx,                chs_cmd.readlimit /* KRN_SEGM:0000 until (KRN_SEGM+readlimit):0000 */
-/* Start reading the boot device, assume all+ registers are garbage, load from struct
- *   +[guard es, was set above and is managed throughout] */
-load_registers: movb    chs_cmd.device,     %dl /* whatever device we booted from */
-                movb    chs_cmd.head,       %dh /* address the proper head */
-                movw    chs_cmd.cylsec,     %cx /* mangled cylsec value into cx */
-                xorw    %bx,                %bx /* es was managed so bx can always be zero */
-                movb    chs_cmd.readlen,    %al /* how many sectors we'd like to read */
-                movb    $0x02,              %ah /* CHS "read" command */
+ *  AH = 00h
+ *  AL = 00h on at least some BIOSes
+ *  BL = drive type (AT/PS2 floppies only) (see #00242)
+ *  CH = low eight bits of maximum cylinder number
+ *  CL = maximum sector number (bits 5-0)
+ *    high two bits of maximum cylinder number (bits 7-6)
+ *  DH = maximum head number
+ *  DL = number of drives
+ *  ES:DI -> drive parameter table (floppies only) */
+save_heads:     movb    %dh,            drvdata.head
+save_cylsec:    movw    %cx,            drvdata.cylsec
+                movw    SAVED_SEGMENT,  %es
+                movw    %es,            %bx
+                addw    %bx,            SAVED_READLIMIT
+                movb    SAVED_DRIVE,    %dl /* this was clobbered within inquire_geom */
+load_registers: movb    SAVED_HEAD,     %dh /* address the latest head */
+                movw    SAVED_CYLSEC,   %cx /* mangled cylsec value into cx */
+                movw    SAVED_OFFSET,   %bx /* es was managed so bx can remain constant, but it's been used willy-nilly in the wrap functions */
+                movb    SAVED_READLEN,  %al /* how many sectors we'd like to read, ax register has been destroyed in supporting functions */
+                movb    $0x02,          %ah /* force CHS "read" command */
+
 #ifdef DEBUG
                 call    debug_regs
 #endif
 /*******************************************************************************
  * CHS Read: https://fd.lod.bz/rbil/interrup/bios/1302.html
  * INT 13 - DISK - READ SECTOR(S) INTO MEMORY     
- *	AH = 02h
- *	AL = number of sectors to read (must be nonzero)
- *	CH = low eight bits of cylinder number
- *	CL = sector number 1-63 (bits 0-5)
- *	     high two bits of cylinder (bits 6-7, hard disk only)
- *	DH = head number
- *	DL = drive number (bit 7 set for hard disk)
- *	ES:BX -> data buffer
+ *  AH = 02h
+ *  AL = number of sectors to read (must be nonzero)
+ *  CH = low eight bits of cylinder number
+ *  CL = sector number 1-63 (bits 0-5)
+ *    high two bits of cylinder (bits 6-7, hard disk only)
+ *  DH = head number
+ *  DL = drive number (bit 7 set for hard disk)
+ *  ES:BX -> data buffer
  ******************************************************************************/
-                int     $0x13               /* perform the read */
+                int     $0x13           /* perform the read */
 #ifdef DEBUG
                 pushf
                 call    debug_regs
                 popf
 #endif /* DEBUG */
-errchecking:    jc      chs_failed          /* handle any errors */
+errchecking:    jc      chs_failed      /* handle any errors */
 /* ah=0, al=sectors_read, the read was successful, advance the buffer pointer */
-adv_buf_ptr:    movw    %es,                %bx /* we need to do arithmatic on es, copy to bx */
-                movw    $0x20,              %ax /* get a 512-byte segment muliplicand */
-                mulb    chs_cmd.readlen     /* use the sectors-read counter as the other multiplicand */
-                addw    %ax,                %bx /* advance bx by the results */
-                movw    %bx,                %es /* and save it back to es; bx still contains the new es value */
-check_partial:  testb   %al,                chs_cmd.readlen /* when the amount read differs from amount requested ... */
-                jne     was_partial         /* ... then we have nothing more to read */
-check_complete: subw    chs_cmd.readlimit,  %bx /* check if the buffer pointer has totally advanced by 64k */
-                jb      wrap_sector             /* when 64KiB have been read, the loader is finished */
-was_partial:    popa
-                ret
-/* this is the only legitimate exit point for chs_read, all other exits are due
- * to failure and should jump to halt(ing) */
+adv_buf_ptr:    shlw    $5,             %ax /* within ax, convert 'sectors read' scalar value into 'segment offset read' scalar value */
+                movw    %es,            %bx
+                addw    %ax,            %bx /* increment the segment pointer accordingly */
+                movw    %bx,            %es /* and save it back (ALU cant write to segment registers) */
+check_partial:  shrw    $5,             %ax /* convert back to 'sectors read' */
+                cmpb    %al,            SAVED_READLEN /* when the amount read differs from amount requested ... */
+                jne     was_partial     /* ... then we have nothing more to read */
+check_complete: subw    SAVED_READLIMIT,%bx /* check if the buffer pointer has totally advanced by 64k */
+                jb      wrap_sector     /* when 64KiB have been read, the loader is finished */
+was_partial:    jmp     chs_return
 /*******************************************************************************
  * End chs_read function
  ******************************************************************************/

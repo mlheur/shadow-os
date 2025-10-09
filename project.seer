@@ -3,20 +3,29 @@
         "connectmode": {
             "gdbserver": "localhost:1234"
         },
-        "executable": "./objs/krn.o",
+        "executable": "./objs/mbr.o",
         "postgdbcommands": [
-            "break *0x10200+SHADOW_OS",
-            "break *0x10200+FIN",
-            "break *0x10200+RETURN_TO_BIOS",
-            "break *0x10200+osname",
-            "break *0x10200+print_long",
-            "break *0x10200+msg_address",
-            "break *0x10200+msg_vector",
-            "break *0x10200+DumpIVT",
+            "break *0x7c00+_start",
+            "break *0x7c00+jump_mbr_segm",
+            "break *0x7c00+_hlt",
+            "break *0x7c00+MBR",
+            "break *0x7c00+save_heads",
+            "break *0x7c00+errchecking",
+            "break *0x7c00+prep_segments",
+            "break *0x7c00+save_bootdev",
+            "break *0x7c00+target_krn",
+            "break *0x7c00+read_bootdev",
+            "break *0x7c00+pass_bootdevid",
+            "break *0x7c00+pass_partition",
+            "break *0x7c00+run_kernel",
+            "break *0x7c00+testing_stack",
+            "break *0x7c00+signature",
+            "break *0x7c00+KRN",
             "continue"
         ],
         "pregdbcommands": [
-            "set arch i8086"
+            "set arch i8086",
+            "add-symbol-file ./objs/krn.o 0x10200"
         ],
         "symbolfile": "",
         "workingdirectory": ""
