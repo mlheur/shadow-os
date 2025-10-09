@@ -1,4 +1,3 @@
-    .file "ram.S"
 #ifndef __RAM_S__
 #define __RAM_S__
 

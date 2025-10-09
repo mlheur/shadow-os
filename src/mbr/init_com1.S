@@ -1,4 +1,3 @@
-    .file "init_com1.S"
 #ifndef __INIT_COM1_S__
 #define __INIT_COM1_S__
 

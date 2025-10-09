@@ -10,6 +10,8 @@
             "break *0x7c00+_ret",
             "break *0x7c00+_hlt",
             "break *0x7c00+MBR",
+            "break *0x7c00+save_heads",
+            "break *0x7c00+errchecking",
             "break *0x7c00+prep_segments",
             "break *0x7c00+save_bootdev",
             "break *0x7c00+target_krn",
@@ -23,7 +25,8 @@
             "continue"
         ],
         "pregdbcommands": [
-            "set arch i8086"
+            "set arch i8086",
+            "add-symbol-file ./objs/krn.o 0x10200"
         ],
         "symbolfile": "",
         "workingdirectory": ""

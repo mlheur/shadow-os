@@ -1,4 +1,3 @@
-    .file "ivt.S"
 #ifndef __IVT_S__
 #define __IVT_S__
 

@@ -1,4 +1,3 @@
-    .file "mbr.S"
 #ifndef __MBR_S__
 #define __MBR_S__
 
@@ -9,6 +8,39 @@
 #include "segments.h"
 #include "prints.h"
 
+/* This is the benchmark for MBR size before turning chs_read into a proper
+   System V ABI https://wiki.osdev.org/System_V_ABI
+
+$ hexdump -C bin/objcopy-mbr                                                                                                        
+00000000  60 ea 09 00 c0 07 c3 fb  f4 0e 1f 88 16 5e 00 b8  |`............^..|
+00000010  03 00 31 d2 cd 14 68 00  10 07 e8 ba 00 ea 00 02  |..1...h.........|
+00000020  00 10 0d 0a 00 ac 84 c0  74 dc e8 2a 00 eb f6 51  |........t..*...Q|
+00000030  b9 0c 00 66 56 66 89 c6  66 d3 e8 e8 12 00 66 89  |...fVf..f.....f.|
+00000040  f0 83 e9 04 73 f2 66 5e  59 c3 51 b9 04 00 eb e3  |....s.f^Y.Q.....|
+00000050  24 0f 3c 0a 1c 69 2f 52  ba f8 03 ee 5a c3 00 01  |$.<..i/R....Z...|
+00000060  00 00 80 00 10 00 00 00  80 fc 0c 0f 84 a0 00 61  |...............a|
+00000070  c3 0f b6 1e 67 00 0f b6  06 61 00 29 c3 74 31 04  |....g....a.).t1.|
+00000080  01 a2 61 00 a1 5f 00 83  e0 c0 f7 d9 00 c8 a2 5f  |..a.._........._|
+00000090  00 eb 63 a1 5f 00 83 e0  3f 0f b6 1e 62 00 01 d8  |..c._...?...b...|
+000000a0  8b 0e 65 00 83 e1 3f 29  c1 72 c6 a3 5f 00 eb 46  |..e...?).r.._..F|
+000000b0  c6 06 61 00 00 a1 5f 00  83 e0 c0 8b 1e 65 00 83  |..a..._......e..|
+000000c0  e3 c0 29 c3 f4 c0 c0 02  86 c4 83 c0 01 25 ff 03  |..)..........%..|
+000000d0  86 e0 c0 c8 02 eb b3 60  8c c3 31 c0 8e c0 89 c7  |.......`..1.....|
+000000e0  b4 08 8a 16 5e 00 cd 13  88 36 67 00 89 0e 65 00  |....^....6g...e.|
+000000f0  8e c3 01 1e 63 00 8a 16  5e 00 8a 36 61 00 8b 0e  |....c...^..6a...|
+00000100  5f 00 31 db a0 62 00 b4  02 cd 13 0f 82 59 ff 8c  |_.1..b.......Y..|
+00000110  c3 b8 20 00 f6 26 62 00  01 c3 8e c3 84 06 62 00  |.. ..&b.......b.|
+00000120  75 08 2b 1e 63 00 0f 82  69 ff 61 c3 00 00 00 00  |u.+.c...i.a.....|
+00000130  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+000001b0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 80 00  |................|
+000001c0  02 00 da 02 01 00 01 00  00 00 7f 00 00 00 00 02  |................|
+000001d0  02 00 01 22 22 00 80 00  00 00 00 08 00 00 00 00  |...""...........|
+000001e0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+000001f0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 55 aa  |..............U.|
+00000200
+
+*/
 
 /*******************************************************************************
  * BIOS hands over to MBR:
@@ -58,10 +90,16 @@ _hlt:           sti
 MBR:
 prep_segments:  pushw   %cs             /* copy cs to ds via stack, it's slower then ... */
                 popw    %ds             /* ... using a register, but makes for smaller assembly. */
-save_bootdev:   movb    %dl,            chs_cmd.device /* submit the bootdevice the chs_read function's input parameters */
+save_bootdev:   pushw   %dx             /* save this before com1 clobbers it */
 #include "init_com1.S"
+pass_bootdev:   popw    %dx             /* recalled bootdev into dl */
+                xorb    %dh,            %dh /* start reading at head 0 */
 target_krn:     pushw   $KRN_SEGM       /* pass the KRN_SEGM ... */
                 popw    %es             /* ... to chs_read via es */
+read_64KiB:     movw    $0x1000,        %di /* Stop reading when es is advanced this much */
+                movw    $1,             %cx /* start a cylsec 0,1 */
+                xorw    %bx,            %bx /* write starting at offset 0 */
+                movb    $0x80,          %al /* ah=XX unused, al=0x80 read 128 sectors at a time */
 read_bootdev:   call    chs_read        /* copy the bootdev to RAM */
 #ifdef PORTABLE_MBR
 pass_bootdevid: movzbl  chs_cmd.device, %edx /* pass bootdev id on to the kernel via dl */

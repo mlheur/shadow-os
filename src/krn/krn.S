@@ -1,4 +1,3 @@
-    .file "krn.S"
 #ifndef __KRN_S__
 #define __KRN_S__
 

@@ -1,4 +1,3 @@
-    .file "prints.S"
 #ifndef __PRINTS_S__
 #define __PRINTS_S__
 
