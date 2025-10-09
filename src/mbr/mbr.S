@@ -152,10 +152,10 @@ _hlt:           sti
 
 MBR:
 save_bootdev:   pushw   %dx             /* save this before com1 clobbers it */
-#include "init_com1.S"
-#include "mbr_shell.S" /* this will set dx appropriately */
 prep_segments:  pushw   %cs             /* copy cs to ds via stack, it's slower then ... */
                 popw    %ds             /* ... using a register, but makes for smaller assembly. */
+#include "init_com1.S"
+#include "mbr_shell.S" /* this will set dx appropriately */
 pass_bootdev:   xorb    %dh,            %dh /* start reading at head 0 */
 target_krn:     pushw   $KRN_SEGM       /* pass the KRN_SEGM ... */
                 popw    %es             /* ... to chs_read via es */
