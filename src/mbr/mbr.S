@@ -151,12 +151,12 @@ _hlt:           sti
  *   all addressing */
 
 MBR:
-prep_segments:  pushw   %cs             /* copy cs to ds via stack, it's slower then ... */
-                popw    %ds             /* ... using a register, but makes for smaller assembly. */
 save_bootdev:   pushw   %dx             /* save this before com1 clobbers it */
 #include "init_com1.S"
-pass_bootdev:   popw    %dx             /* recalled bootdev into dl */
-                xorb    %dh,            %dh /* start reading at head 0 */
+#include "mbr_shell.S" /* this will set dx appropriately */
+prep_segments:  pushw   %cs             /* copy cs to ds via stack, it's slower then ... */
+                popw    %ds             /* ... using a register, but makes for smaller assembly. */
+pass_bootdev:   xorb    %dh,            %dh /* start reading at head 0 */
 target_krn:     pushw   $KRN_SEGM       /* pass the KRN_SEGM ... */
                 popw    %es             /* ... to chs_read via es */
 read_64KiB:     movw    $0x1000,        %di /* Stop reading when es is advanced this much */

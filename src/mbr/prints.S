@@ -50,10 +50,14 @@ nibble_ascii:   andb    $0x0F,              %al
                 das /* carry on to outb_com1 */
 /*******************************************************************************
  * Function: outb_com1
- * Purpose: send a byte out the serial port */
+ * Purpose: send a byte out the serial port, wait for completion */
 outb_com1:      pushw   %dx
                 movw    COM1_BASE,          %dx
                 outb    %al,                %dx
+                movw    COM1_LINE_STAT,     %dx /* watch the status register for completion */
+1:              inb     %dx,                %al
+                testb   $0x20,              %al
+                jz      1b
                 popw    %dx
                 ret
 /******************************************************************************/

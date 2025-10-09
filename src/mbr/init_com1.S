@@ -1,13 +1,6 @@
 #ifndef __INIT_COM1_S__
 #define __INIT_COM1_S__
 
-#ifndef AVOID_INTERRUPTS
-
-init_COM1:  movw        $0x0003,    %ax /* 19200-8-None-1 */
-            xorw        %dx,        %dx /* port 0 */
-            int         $0x14       /* latch that into the serial controller's settings */
-
-#else /* AVOID_INTERRUPTS */
 
 #define COM1_BUFFER     COM1_BASE+0
 #define COM1_IRQ_STAT   COM1_BASE+1
@@ -20,6 +13,15 @@ init_COM1:  movw        $0x0003,    %ax /* 19200-8-None-1 */
 #define COM1_LINE_STAT  COM1_BASE+5
 #define COM1_MODM_STAT  COM1_BASE+6
 #define COM1_SCRATCH    COM1_BASE+7
+
+
+#ifndef AVOID_INTERRUPTS
+
+init_COM1:  movw        $0x0003,    %ax /* 19200-8-None-1 */
+            xorw        %dx,        %dx /* port 0 */
+            int         $0x14       /* latch that into the serial controller's settings */
+
+#else /* AVOID_INTERRUPTS */
 
 /* plagarized from https://wiki.osdev.org/Serial_Ports, but I typed it myself */
 
