@@ -7,7 +7,6 @@
         "postgdbcommands": [
             "break *0x7c00+_start",
             "break *0x7c00+jump_mbr_segm",
-            "break *0x7c00+_ret",
             "break *0x7c00+_hlt",
             "break *0x7c00+MBR",
             "break *0x7c00+save_heads",

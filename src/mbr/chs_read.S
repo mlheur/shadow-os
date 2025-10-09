@@ -3,12 +3,14 @@
 
 
 #include "stack_offsets.h"
-#define SAVED_DRIVE     PUSHED_DL
-#define SAVED_HEAD      PUSHED_DH
-#define SAVED_CYLSEC    PUSHED_CX
+#define PUSHED_ES       2+PUSHED_AX
+
 #define SAVED_READLEN   PUSHED_AL
-#define SAVED_SEGMENT   PUSHED_ES
+#define SAVED_CYLSEC    PUSHED_CX
+#define SAVED_HEAD      PUSHED_DH
+#define SAVED_DRIVE     PUSHED_DL
 #define SAVED_OFFSET    PUSHED_BX
+#define SAVED_SEGMENT   PUSHED_ES
 #define SAVED_READLIMIT PUSHED_DI
 
 
@@ -35,7 +37,9 @@ drvdata.head:           .byte 0
 /******************************************************************************/
 chs_failed:     subb    $0x0C,          %ah /* return code 0x0C tried to read past end of disk, this might be OK */
                 jz      adv_buf_ptr     /* handle successful read of those sectors */
+/******************************************************************************/
 chs_return:     del_stack_frame
+                popw    %es
                 ret
 /******************************************************************************/
 
@@ -99,7 +103,8 @@ wrap_cylinder:  movb    $0,             SAVED_HEAD /* reset head to zero */
  *  ah: the start head to read from
  *  al: the number of sectors to read per IOP
  ******************************************************************************/
-chs_read:       new_stack_frame
+chs_read:       pushw   %es
+                new_stack_frame
 /* Inquire from the BIOS: what are the CHS limits of the boot device,
  * those are needed throughout the CHS incrementer */
 inquire_geom:   xorw    %ax,            %ax /* get a zero */
@@ -119,7 +124,9 @@ inquire_geom:   xorw    %ax,            %ax /* get a zero */
  *  ES:DI -> drive parameter table (floppies only) */
 save_heads:     movb    %dh,            drvdata.head
 save_cylsec:    movw    %cx,            drvdata.cylsec
-                movw    SAVED_READLIMIT,%di /* this was clobbered before inquire_geom */
+                movw    SAVED_SEGMENT,  %es
+                movw    %es,            %bx
+                addw    %bx,            SAVED_READLIMIT
                 movb    SAVED_DRIVE,    %dl /* this was clobbered within inquire_geom */
 load_registers: movb    SAVED_HEAD,     %dh /* address the latest head */
                 movw    SAVED_CYLSEC,   %cx /* mangled cylsec value into cx */
@@ -155,13 +162,11 @@ adv_buf_ptr:    shlw    $5,             %ax /* within ax, convert 'sectors read'
                 addw    %ax,            %bx /* increment the segment pointer accordingly */
                 movw    %bx,            %es /* and save it back (ALU cant write to segment registers) */
 check_partial:  shrw    $5,             %ax /* convert back to 'sectors read' */
-                testb   %al,            SAVED_READLEN /* when the amount read differs from amount requested ... */
+                cmpb    %al,            SAVED_READLEN /* when the amount read differs from amount requested ... */
                 jne     was_partial     /* ... then we have nothing more to read */
-check_complete: subw    %di,            %bx /* check if the buffer pointer has totally advanced by 64k */
+check_complete: subw    SAVED_READLIMIT,%bx /* check if the buffer pointer has totally advanced by 64k */
                 jb      wrap_sector     /* when 64KiB have been read, the loader is finished */
-was_partial:    ret
-/* this is the only legitimate exit point for chs_read, all other exits are due
- * to failure and should jump to halt(ing) */
+was_partial:    jmp     chs_return
 /*******************************************************************************
  * End chs_read function
  ******************************************************************************/
