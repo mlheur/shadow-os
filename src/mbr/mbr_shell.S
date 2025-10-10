@@ -31,14 +31,14 @@ check_for_enter:    inb     %dx,                    %al /* reread the byte from 
 accept_input:       movb    $0x0a,                  %al
                     call    outb_com1
 
-lookup_user_cmd:    xorw    %di,                    %di /* reset the pointer the start of the user input buffer */
-                    movw    %es:(%di),              %ax /* first two characters make a word in a LUT, endianness means it's in reverse order what the user typed. */
-                    movw    $mbr_shell_lut_start,   %bx
-                    xorw    %cx,                    %cx
-                    movw    (%ebx,%ecx,4),          %dx
-1:                  cmpw    %dx,                    %ax
+lookup_user_cmd:    movw    $mbr_shell_lut_start,   %bx /* Address the head of the LUT */
+                    xorw    %cx,                    %cx /* Start at the first LUT entry */
+                    movw    %cx,                    %di /* reset the user input buffer pointer to the start */
+1:                  movw    %es:(%di),              %dx
+                    movw    (%ebx,%ecx,4),          %ax /* retrieve the LUT key */
+                    cmpw    %ax,                    %dx /* compare with the value in the user input buffer */
                     je      1f
-                    testw   %dx,                    %dx
+                    testw   %ax,                    %ax
                     jz      buffer_exceeded
                     addw    $1,                     %cx
                     jmp     1b
@@ -48,7 +48,7 @@ buffer_exceeded:    popw    %dx
 
 mbr_shell_data:     jmp     post_mbr_prompt
 .equ mbr_shell_lut_start, .
-mbr_shell_lut_LS:   .word   0x6c73                  /* ls: list all partitions on all disks */
+mbr_shell_lut_LS:   .word   0x736C                  /* ls: list all partitions on all disks */
 mbr_shell_ptr_LS:   .word   mbr_shell_fn_LS
 mbr_shell_lut_GO:   .word   0x6f67                  /* go: boot the selected partition */
 mbr_shell_ptr_GO:   .word   mbr_shell_fn_GO
