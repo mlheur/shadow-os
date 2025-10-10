@@ -39,10 +39,10 @@ chs_return:     del_stack_frame
  * Each of the three wrappers below will set the whole CHS struct appropriately,
  * and jump to the next load_registers iteration.
  ******************************************************************************/
-.equ drvdata.head, 2 + .
-wrap_head:      movzbw  0xFF,           %bx /* get the metric against which we'll test limits, FF will be replaced at runtime when writing to drvdata.head */
-                movzbw  SAVED_HEAD,     %ax /* get the current value */
-                subw    %ax,            %bx /* if the limit is reached ... */
+.set drvdata.head, 1 + .
+wrap_head:      movb    $0x5C,          %bl /* get the metric against which we'll test limits, FF will be replaced at runtime when writing to drvdata.head */
+                movb    SAVED_HEAD,     %al /* get the current value */
+                subb    %al,            %bl /* if the limit is reached ... */
                 jz      wrap_cylinder   /* ... wrap the cylinder instead, it will reset the head and sector */
                 addb    $1,             %al /* else increment the head */
                 movb    %al,            SAVED_HEAD /* and save it back */
@@ -59,8 +59,8 @@ wrap_sector:    movw    SAVED_CYLSEC,   %ax /* get the 16-bit mangled cylsec add
                 movzbw  SAVED_READLEN,  %bx /* recall how many sectors were successfully read */
                 addw    %bx,            %ax /* advance the sector pointer that much ... */
 /* we advanced sectors by 1 **OR MORE**, check if we exceeded the sector limit */
-.equ drvdata.cylsec, 2 + .
-                movw    $0xFF,          %cx /* get the last sector valid sector ID; FF will be replaced at runtime when writing to drvdata.cylsec */
+.set drvdata.cylsec, 1 + .
+                movw    $0xC5C5,        %cx /* get the last sector valid sector ID; FF will be replaced at runtime when writing to drvdata.cylsec */
                 andw    $0x003F,        %cx /* filter just the 6-bit sector portion */
                 subw    %ax,            %cx /* compare the calculated sector ID against the limit, destroys cx */
                 jb      wrap_head       /* if ax is bigger than cx then the limit was exceeded, wrap to the next head */
@@ -71,7 +71,7 @@ wrap_sector:    movw    SAVED_CYLSEC,   %ax /* get the 16-bit mangled cylsec add
 wrap_cylinder:  movb    $0,             SAVED_HEAD /* reset head to zero */
                 movw    SAVED_CYLSEC,   %ax /* get the current mangled address */
                 andw    $0xFFC0,        %ax /* filter out sectors to zero */
-                movw    drvdata.cylsec, %bx /* get the metric against which we'll test the limits, it got stored in the source operand of the movw instruction in the middle of wrap_sector. */
+                movw    $drvdata.cylsec,%bx /* get the metric against which we'll test the limits, it got stored in the source operand of the movw instruction in the middle of wrap_sector. */
                 andw    $0xFFC0,        %bx /* filter out sectors to zero */
                 cmpw    %ax,            %bx /* check if the limit is reached */
                 jae     chs_return      /* unable to read past end of disk */
@@ -115,8 +115,10 @@ inquire_geom:   xorw    %ax,            %ax /* get a zero */
  *  DH = maximum head number
  *  DL = number of drives
  *  ES:DI -> drive parameter table (floppies only) */
-save_heads:     movb    %dh,            drvdata.head    /* self modifying code, write this value in the source operand of the movzbw instruction at wrap_head. */
-save_cylsec:    movw    %cx,            drvdata.cylsec  /* ditto, for the movw instruction source operand in the middle of wrap_sector */
+save_heads1:    movl    $drvdata.head,  %edi
+save_cylsec1:   movl    $drvdata.cylsec,%esi
+save_heads2:    movb    %dh,            %ds:(%edi) /* self modifying code, write this value in the source operand of the movzbw instruction at wrap_head. */
+save_cylsec2:   movw    %cx,            %ds:(%esi)  /* ditto, for the movw instruction source operand in the middle of wrap_sector */
                 movw    SAVED_SEGMENT,  %es
                 movw    %es,            %bx
                 addw    %bx,            SAVED_READLIMIT

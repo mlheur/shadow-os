@@ -154,8 +154,9 @@ MBR:
 save_bootdev:   pushw   %dx             /* save this before com1 clobbers it */
 prep_segments:  pushw   %cs             /* copy cs to ds via stack, it's slower then ... */
                 popw    %ds             /* ... using a register, but makes for smaller assembly. */
-#include "init_com1.S"
-#include "mbr_shell.S" /* this will set dx appropriately */
+#include "run_init_com1.S"
+/* #include "run_mbr_shell.S" /* this will set dx appropriately */
+popw %dx
 pass_bootdev:   xorb    %dh,            %dh /* start reading at head 0 */
 target_krn:     pushw   $KRN_SEGM       /* pass the KRN_SEGM ... */
                 popw    %es             /* ... to chs_read via es */
@@ -178,8 +179,8 @@ run_kernel:     ljmp    $KRN_SEGM,      $KRN /* Run the kernel in its code segme
  * Import functions for console output and disk input.
  * These will stay resident under KRN_SEGM:offset
  ******************************************************************************/
-#include "prints.S"
-#include "chs_read.S"
+#include "fun_prints.S"
+#include "fun_chs_read.S"
 
 /*******************************************************************************
  * https://wiki.osdev.org/Partition_Table */
