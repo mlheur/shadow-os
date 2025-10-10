@@ -154,16 +154,16 @@ MBR:
 save_bootdev:   pushw   %dx             /* save this before com1 clobbers it */
 prep_segments:  pushw   %cs             /* copy cs to ds via stack, it's slower then ... */
                 popw    %ds             /* ... using a register, but makes for smaller assembly. */
-#include "run_init_com1.S"
-/* #include "run_mbr_shell.S" /* this will set dx appropriately */
-popw %dx
+#include "run_init_com1.S"              /* enable output to the serial console */
+#include "run_mbr_shell.S"              /* this will pop dx and set dl per the user's selection */
 pass_bootdev:   xorb    %dh,            %dh /* start reading at head 0 */
 target_krn:     pushw   $KRN_SEGM       /* pass the KRN_SEGM ... */
                 popw    %es             /* ... to chs_read via es */
-read_64KiB:     movw    $0x1000,        %di /* Stop reading when es is advanced this much */
+                xorw    %bx,            %bx /* write starting at offset 0 */
                 movw    $1,             %cx /* start a cylsec 0,1 */
                 xorw    %bx,            %bx /* write starting at offset 0 */
                 movb    $0x80,          %al /* ah=XX unused, al=0x80 read 128 sectors at a time */
+read_64KiB:     movw    $0x1000,        %di /* Stop reading when es is advanced this much */
 read_bootdev:   call    _chs_read       /* copy the bootdev to RAM */
 #ifdef PORTABLE_MBR
 pass_bootdevid: movzbl  chs_cmd.device, %edx /* pass bootdev id on to the kernel via dl */
