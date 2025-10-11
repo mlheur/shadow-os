@@ -22,7 +22,7 @@ save_com1_input:    stosb
 echo_com1_input:    call    outb_com1
 
 check_buffer_limit: cmpw    $MBR_SHELL_LIMIT,       %si
-                    jae     buffer_exceeded
+                    jae     use_bios_device         /* buffer is about to overflow, just boot the device the BIOS gave us */
 
 check_for_enter:    inb     %dx,                    %al /* reread the byte from the uart after outb clobbered ax */
                     cmpb    $0x0d,                  %al
@@ -37,17 +37,14 @@ lookup_user_cmd:    movw    $mbr_shell_lut_start,   %bx /* Address the head of t
 1:                  movw    %es:(%di),              %dx
                     movw    (%ebx,%ecx,4),          %ax /* retrieve the LUT key */
                     cmpw    %ax,                    %dx /* compare with the value in the user input buffer */
-                    je      1f
+                    je      jmp_shell_lut           /* skips over the mbr_shell_data */
                     testw   %ax,                    %ax
-                    jz      buffer_exceeded
+                    jz      use_bios_device         /* invalid user input, use the BIOS device */
                     addw    $1,                     %cx
                     jmp     1b
-1:                  jmp     2(%ebx,%ecx,4)
-
-buffer_exceeded:    popw    %dx
-
-mbr_shell_data:     jmp     post_mbr_prompt
-.equ mbr_shell_lut_start, .
+/* Pack data in the code, this is a good hiding spot */
+mbr_shell_data:
+.set mbr_shell_lut_start, .
 mbr_shell_lut_LS:   .word   0x736C                  /* ls: list all partitions on all disks */
 mbr_shell_ptr_LS:   .word   mbr_shell_fn_LS
 mbr_shell_lut_GO:   .word   0x6f67                  /* go: boot the selected partition */
@@ -55,11 +52,16 @@ mbr_shell_ptr_GO:   .word   mbr_shell_fn_GO
 mbr_shell_lut_end:  .word   0
 mbr_shell_fn_LS:    movw    $'L',%ax
                     call    outb_com1
-                    jmp     buffer_exceeded         /* todo: implement ls */
+                    jmp     use_bios_device         /* todo: implement ls */
 mbr_shell_fn_GO:    movw    $'G',%ax
                     call    outb_com1
-                    jmp     buffer_exceeded         /* todo: implement go */
+                    jmp     use_bios_device         /* todo: implement go */
+end_shell_data:
+/* end packing */
+jmp_shell_lut:      jmp     2(%ebx,%ecx,4)
 
+
+use_bios_device:    popw    %dx /* get back the bootdevice the BIOS passed to MBR */
 post_mbr_prompt:    /* ret not required, fall through to MBR since we're included inline there, not called */
 
 #endif /* __MBR_SHELL_S__ */
