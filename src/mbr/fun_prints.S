@@ -19,6 +19,28 @@ _prints:        lodsb                       /* copy the character to al, increme
 
 
 /*******************************************************************************
+ * Function: nibble_ascii
+ * Purpose: convert four bits to one of the characters 0-9,A-F; send it out */
+nibble_ascii:   andb    $0x0F,              %al
+                cmpb    $0x0A,              %al
+                sbbb    $0x69,              %al
+                das /* carry on to outb_com1 */
+/*******************************************************************************
+ * Function: outb_com1
+ * Purpose: send a byte out the serial port, wait for completion */
+outb_com1:      pushw   %dx
+                movw    COM1_BASE,          %dx
+                outb    %al,                %dx
+                movw    COM1_LINE_STAT,     %dx /* watch the status register for completion */
+1:              inb     %dx,                %al
+                testb   $0x20,              %al
+                jz      1b
+                popw    %dx
+                ret
+/******************************************************************************/
+
+
+/*******************************************************************************
  * Function: print_word; this one is called more often, goes first with fewest jumps
  * Function: print_byte; put this one later, to have faster jump backward.
  * Purpose: convert one or two bytes into to ascii, then send it out */
@@ -38,28 +60,6 @@ _print_nibbles: pushl   %esi                        /* use esi as a backup of ea
 print_byte:     pushw   %cx                         /* use cx as a loop counter for nibble shifting */
                 movw    $4,                 %cx     /* shift four bits, then zero bits */
                 jmp     _print_nibbles /* jumping bacwkward is faster than jumping forward */
-/******************************************************************************/
-
-
-/*******************************************************************************
- * Function: nibble_ascii
- * Purpose: convert four bits to one of the characters 0-9,A-F; send it out */
-nibble_ascii:   andb    $0x0F,              %al
-                cmpb    $0x0A,              %al
-                sbbb    $0x69,              %al
-                das /* carry on to outb_com1 */
-/*******************************************************************************
- * Function: outb_com1
- * Purpose: send a byte out the serial port, wait for completion */
-outb_com1:      pushw   %dx
-                movw    COM1_BASE,          %dx
-                outb    %al,                %dx
-                movw    COM1_LINE_STAT,     %dx /* watch the status register for completion */
-1:              inb     %dx,                %al
-                testb   $0x20,              %al
-                jz      1b
-                popw    %dx
-                ret
 /******************************************************************************/
 
 
