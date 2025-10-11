@@ -7,6 +7,7 @@
 #include "globals.h"
 #include "segments.h"
 #include "prints.h"
+#include "com1.h"
 
 /* This is the benchmark for MBR size before turning chs_read into a proper
    System V ABI https://wiki.osdev.org/System_V_ABI

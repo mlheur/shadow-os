@@ -1,20 +1,6 @@
 #ifndef __INIT_COM1_S__
 #define __INIT_COM1_S__
 
-
-#define COM1_BUFFER     COM1_BASE+0
-#define COM1_IRQ_STAT   COM1_BASE+1
-#define COM1_DIV_LO     COM1_BASE+0
-#define COM1_DIV_HI     COM1_BASE+1
-#define COM1_RD_IRQID   COM1_BASE+2
-#define COM1_FIFO_CTL   COM1_BASE+2
-#define COM1_LINE_CTL   COM1_BASE+3
-#define COM1_MODM_CTL   COM1_BASE+4
-#define COM1_LINE_STAT  COM1_BASE+5
-#define COM1_MODM_STAT  COM1_BASE+6
-#define COM1_SCRATCH    COM1_BASE+7
-
-
 #ifndef AVOID_INTERRUPTS
 
 init_COM1:  movw        $0x0003,    %ax /* 19200-8-None-1 */
@@ -41,5 +27,6 @@ jne     _hlt                    /* or bail */
 OUTB    ($0x0F, COM1_MODM_CTL)  /* disable loopback mode, assert both Out pins */
 
 #endif /* AVOID_INTERRUPTS */
+
 
 #endif /*  __INIT_COM1_S__ */
