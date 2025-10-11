@@ -4,8 +4,6 @@ ENTRY(_start)
 
 SECTIONS {
     _start = .;
-    drvdata.cylsec = _chs_cylsec+2;
-    drvdata.head   = _chs_head+2;
     .text : {
         *(.text)
     }

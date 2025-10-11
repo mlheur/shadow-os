@@ -7,6 +7,7 @@
 #include "globals.h"
 #include "segments.h"
 #include "prints.h"
+#include "com1.h"
 
 /* This is the benchmark for MBR size before turning chs_read into a proper
    System V ABI https://wiki.osdev.org/System_V_ABI
@@ -102,7 +103,6 @@ $ hexdump -C bin/objcopy-mbr
 000001f0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 55 aa  |..............U.|
 00000200
 
-
 */
 
 /*******************************************************************************
@@ -119,13 +119,20 @@ $ hexdump -C bin/objcopy-mbr
  * BIOS Entry Point into MBR, testing in qemu shows we get here via lcall.
  ******************************************************************************/
     .text
-_start:         pusha /* preserve BIOS registers, KRN will restore pre-lret */
-jump_mbr_segm:  ljmp    $MBR_SEGM,      $MBR /* Run the MBR into KRN */
+_start:             pusha /* preserve BIOS registers, KRN will restore pre-lret */
+jump_mbr_segm:      ljmp    $MBR_SEGM,  $MBR /* Run the MBR into KRN */
 /******************************************************************************/
-_ret:           ret /* derefence indirect "Jcc _ret" */
-_hlt:           sti
-                hlt
+_ret:               ret /* derefence indirect "Jcc _ret" */
+_hlt:               sti
+                    hlt
 /******************************************************************************/
+
+/*******************************************************************************
+ * Import functions for console output and disk input.
+ * These will stay resident under KRN_SEGM:offset
+ ******************************************************************************/
+#include "fun_prints.S"
+#include "fun_chs_read.S"
 
 /*******************************************************************************
  * Most HDD MBRs relocate themselves to nearby, maybe cs:=0x07A0 and then load a
@@ -151,35 +158,23 @@ _hlt:           sti
  *   all addressing */
 
 MBR:
-prep_segments:  pushw   %cs             /* copy cs to ds via stack, it's slower then ... */
-                popw    %ds             /* ... using a register, but makes for smaller assembly. */
-save_bootdev:   pushw   %dx             /* save this before com1 clobbers it */
-#include "init_com1.S"
-pass_bootdev:   popw    %dx             /* recalled bootdev into dl */
-                xorb    %dh,            %dh /* start reading at head 0 */
-target_krn:     pushw   $KRN_SEGM       /* pass the KRN_SEGM ... */
-                popw    %es             /* ... to chs_read via es */
-read_64KiB:     movw    $0x1000,        %di /* Stop reading when es is advanced this much */
-                movw    $1,             %cx /* start a cylsec 0,1 */
-                xorw    %bx,            %bx /* write starting at offset 0 */
-                movb    $0x80,          %al /* ah=XX unused, al=0x80 read 128 sectors at a time */
-read_bootdev:   call    _chs_read       /* copy the bootdev to RAM */
-#ifdef PORTABLE_MBR
-pass_bootdevid: movzbl  chs_cmd.device, %edx /* pass bootdev id on to the kernel via dl */
-pass_partition: pushw   $PARTITION1
-                popw    %si
-#endif
-run_kernel:     ljmp    $KRN_SEGM,      $KRN /* Run the kernel in its code segment */
+save_bootdev:       pushw   %dx         /* save this before com1 clobbers it */
+prep_segments:      pushw   %cs         /* copy cs to ds via stack, it's slower then ... */
+                    popw    %ds         /* ... using a register, but makes for smaller assembly. */
+#include "run_init_com1.S"              /* enable output to the serial console */
+#include "run_mbr_shell.S"              /* this will pop dx and set dl per the user's selection */
+preread_head:       xorb    %dh,        %dh /* start reading at head 0 */
+preread_segm1:      pushw   $KRN_SEGM   /* pass the KRN_SEGM ... */
+preread_segm2:      popw    %es         /* ... to chs_read via es */
+preread_offset:     xorw    %bx,        %bx /* write starting at offset 0 */
+preread_cylsec:     movw    $1,         %cx /* start a cylsec 0,1 */
+preread_readlen:    movb    $0x80,      %al /* ah=XX unused, al=0x80 read 128 sectors at a time */
+preread_readamt:    movw    $0x1000,    %di /* Stop reading when es is advanced this much */
+preared_read:       call    _chs_read   /* copy the bootdev to RAM */
+run_kernel:         ljmp    $KRN_SEGM,  $KRN /* Run the kernel in its code segment */
 /*******************************************************************************
  * End MBR function
  ******************************************************************************/
-
-/*******************************************************************************
- * Import functions for console output and disk input.
- * These will stay resident under KRN_SEGM:offset
- ******************************************************************************/
-#include "prints.S"
-#include "chs_read.S"
 
 /*******************************************************************************
  * https://wiki.osdev.org/Partition_Table */
