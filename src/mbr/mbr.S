@@ -129,6 +129,13 @@ _hlt:           sti
 /******************************************************************************/
 
 /*******************************************************************************
+ * Import functions for console output and disk input.
+ * These will stay resident under KRN_SEGM:offset
+ ******************************************************************************/
+#include "fun_prints.S"
+#include "fun_chs_read.S"
+
+/*******************************************************************************
  * Most HDD MBRs relocate themselves to nearby, maybe cs:=0x07A0 and then load a
  * PBR from the active partition.
  * shadow-os will do something completely different, there's no attempt at
@@ -175,13 +182,6 @@ run_kernel:     ljmp    $KRN_SEGM,      $KRN /* Run the kernel in its code segme
 /*******************************************************************************
  * End MBR function
  ******************************************************************************/
-
-/*******************************************************************************
- * Import functions for console output and disk input.
- * These will stay resident under KRN_SEGM:offset
- ******************************************************************************/
-#include "fun_prints.S"
-#include "fun_chs_read.S"
 
 /*******************************************************************************
  * https://wiki.osdev.org/Partition_Table */
