@@ -27,5 +27,6 @@
 #define PUSHED_BH   1+PUSHED_BX
 #define PUSHED_BL     PUSHED_BX
 
+#define NEXT_PUSHED_OFFSET 2+PUSHED_AX
 
 #endif /* __STACK_OFFSET_H__ */
