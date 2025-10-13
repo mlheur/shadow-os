@@ -177,7 +177,18 @@ run_kernel:         ljmp    $KRN_SEGM,  $KRN /* Run the kernel in its code segme
  ******************************************************************************/
 
 /*******************************************************************************
- * https://wiki.osdev.org/Partition_Table */
+ * https://wiki.osdev.org/Partition_Table
+ * .byte: bootable flag on bit 0x80
+ * .byte: starting head
+ * .byte: starting cylsec, sector portion
+ * .byte: starting cylsec, cylinder portion
+ * .byte: filesys ID
+ * .byte: ending head
+ * .byte: ending cylsec, sector part
+ * .byte: ending cylsec, cyl part
+ * .long: starting LBA
+ * .long: quantity LBA
+ ******************************************************************************/
     . = 0x1BE /* Part 1 */
 PARTITION1:
 .byte   0x80 /* active */
@@ -204,16 +215,28 @@ PARTITION2:
 .long   0x00000800
 PARTITION3:
     . = 0x1DE
-.long   0x00000000
-.long   0x00000000
-.long   0x00000000
-.long   0x00000000
+.byte   0x00 /* inactive */
+.byte   0x22
+.byte   0x23
+.byte   0x00
+.byte   0x83 /* mkfs.ext2 */
+.byte   0x43
+.byte   0x03
+.byte   0x00
+.long   0x00000880
+.long   0x00000800
 PARTITION4:
     . = 0x1EE
-.long   0x00000000
-.long   0x00000000
-.long   0x00000000
-.long   0x00000000
+.byte   0x00 /* inactive */
+.byte   0x43
+.byte   0x04
+.byte   0x00
+.byte   0x81 /* mkfs.minix */
+.byte   0x64
+.byte   0x23
+.byte   0x00
+.long   0x00001080
+.long   0x00000800
 /******************************************************************************/
 
 
