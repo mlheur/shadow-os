@@ -4,7 +4,7 @@
 msg_interrupt:  .asciz "int:0x"
 msg_vec_seg:    .asciz " segment:0x"
 msg_vec_off:    .asciz " offset:0x"
-DumpIVT:        pusha
+DumpIVT:        pushaw
                 xorl        %ebx,           %ebx /* start at int 0x00 */
                 movl        %ebx,           %ecx /* use cx as copy of ds register during IVT reads */
                 movw        %ds,            %dx  /* use dx as copy of ds register during prints reads */
@@ -29,7 +29,7 @@ DumpIVT:        pusha
 
                 addb        $1,             %bl /* the last interrupt is 0xFF */
                 jnc         1b                  /* loop until the carry flag gets set rolling past 0xFF */
-                popa
+                popaw
                 ret
 
 #endif /* __IVT_S__ */

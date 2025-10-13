@@ -119,7 +119,7 @@ $ hexdump -C bin/objcopy-mbr
  * BIOS Entry Point into MBR, testing in qemu shows we get here via lcall.
  ******************************************************************************/
     .text
-_start:             pusha /* preserve BIOS registers, KRN will restore pre-lret */
+_start:             pushaw /* preserve BIOS registers, KRN will restore pre-lret */
 jump_mbr_segm:      ljmp    $MBR_SEGM,  $MBR /* Run the MBR into KRN */
 /******************************************************************************/
 _ret:               ret /* derefence indirect "Jcc _ret" */
