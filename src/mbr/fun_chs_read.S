@@ -1,5 +1,5 @@
-#ifndef __CHS_READ_S__
-#define __CHS_READ_S__
+#ifndef __FUN_CHS_READ_S__
+#define __FUN_CHS_READ_S__
 
 #include "chs_read.h"
 #include "stack_offsets.h"
@@ -27,8 +27,8 @@
  * Each of the three wrappers below will set the whole CHS struct appropriately,
  * and jump to the next load_registers iteration.
  ******************************************************************************/
-.set drvdata.head, 1 + .
-wrap_head:      movb    $0x5C,          %bl /* get the metric against which we'll test limits, FF will be replaced at runtime when writing to drvdata.head */
+.set limit_head, 1 + .
+wrap_head:      movb    $0x5C,          %bl /* get the metric against which we'll test limits, FF will be replaced at runtime when writing to limit_head */
                 movb    SAVED_HEAD,     %al /* get the current value */
                 subb    %al,            %bl /* if the limit is reached ... */
                 jz      wrap_cylinder   /* ... wrap the cylinder instead, it will reset the head and sector */
@@ -46,8 +46,8 @@ wrap_sector:    movw    SAVED_CYLSEC,   %ax /* get the 16-bit mangled cylsec add
                 movzbw  SAVED_READLEN,  %bx /* recall how many sectors were successfully read */
                 addw    %bx,            %ax /* advance the sector pointer that much ... */
 /* we advanced sectors by 1 **OR MORE**, check if we exceeded the sector limit */
-.set drvdata.cylsec, 1 + .
-                movw    $0xC5C5,        %cx /* get the last sector valid sector ID; FF will be replaced at runtime when writing to drvdata.cylsec */
+.set limit_cylsec, 1 + .
+                movw    $0xC5C5,        %cx /* get the last sector valid sector ID; FF will be replaced at runtime when writing to limit_cylsec */
                 andw    $0x003F,        %cx /* filter just the 6-bit sector portion */
                 subw    %ax,            %cx /* compare the calculated sector ID against the limit, destroys cx */
                 jb      wrap_head       /* if ax is bigger than cx then the limit was exceeded, wrap to the next head */
@@ -56,8 +56,8 @@ wrap_sector:    movw    SAVED_CYLSEC,   %ax /* get the 16-bit mangled cylsec add
 /******************************************************************************/
 wrap_cylinder:  movb    $0,             SAVED_HEAD /* reset head to zero */
                 movw    SAVED_CYLSEC,   %ax /* get the current mangled address */
+                movw    $limit_cylsec,  %bx /* get the metric against which we'll test the limits, it got stored in the source operand of the movw instruction in the middle of wrap_sector. */
                 andw    $0xFFC0,        %ax /* filter out sectors to zero */
-                movw    $drvdata.cylsec,%bx /* get the metric against which we'll test the limits, it got stored in the source operand of the movw instruction in the middle of wrap_sector. */
                 andw    $0xFFC0,        %bx /* filter out sectors to zero */
                 cmpw    %ax,            %bx /* check if the limit is reached */
                 jae     chs_return      /* unable to read past end of disk */
@@ -94,7 +94,7 @@ chs_return:     del_stack_frame
  *  dl: the disk/drive device to read from
  *  cx: the starting sector and cylinder in mangled form
  *  bx: the offset from es for the write opeartion
- *  ah: the start head to read from
+ *  ah: unused
  *  al: the number of sectors to read per IOP
  ******************************************************************************/
 _chs_read:      pushw   %es
@@ -116,8 +116,8 @@ inquire_geom:   xorw    %ax,            %ax /* get a zero */
  *  DH = maximum head number
  *  DL = number of drives
  *  ES:DI -> drive parameter table (floppies only) */
-save_heads1:    movl    $drvdata.head,  %edi
-save_cylsec1:   movl    $drvdata.cylsec,%esi
+save_heads1:    movl    $limit_head,  %edi
+save_cylsec1:   movl    $limit_cylsec,%esi
 save_heads2:    movb    %dh,            %ds:(%edi) /* self modifying code, write this value in the source operand of the movzbw instruction at wrap_head. */
 save_cylsec2:   movw    %cx,            %ds:(%esi)  /* ditto, for the movw instruction source operand in the middle of wrap_sector */
                 movw    SAVED_SEGMENT,  %es
@@ -155,8 +155,10 @@ errchecking:    jnc     adv_buf_ptr     /* handle any errors */
 /******************************************************************************/
 chs_failed:     subb    $0x0C,          %ah /* return code 0x0C tried to read past end of disk, this might be OK */
                 jz      adv_buf_ptr     /* handle successful read of those sectors */
+/******************************************************************************/
+chs_failed2:    jmp     chs_return
 /*******************************************************************************
  * End chs_read function
  ******************************************************************************/
 
-#endif /* __CHS_READ_S__ */
+#endif /* __FUN_CHS_READ_S__ */

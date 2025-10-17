@@ -2,7 +2,7 @@
 #define __RAM_S__
 
 msg_value:      .asciz " value:0x"
-DumpRAM:        pusha
+DumpRAM:        pushaw
                 xorl        %ebx,           %ebx /* start at offset 0x0000 */
                 subw        $4,             %bx
                 movl        $0xF000,        %ecx /* use cx as copy of ds register during IVT reads */
@@ -30,7 +30,7 @@ DumpRAM:        pusha
                 subw        $0x1000,        %cx /* same like above */
                 jnc         1b
 
-                popa
+                popaw
                 ret
 
 #endif /* __RAM_S__ */

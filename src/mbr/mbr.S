@@ -119,12 +119,13 @@ $ hexdump -C bin/objcopy-mbr
  * BIOS Entry Point into MBR, testing in qemu shows we get here via lcall.
  ******************************************************************************/
     .text
-_start:             pusha /* preserve BIOS registers, KRN will restore pre-lret */
+_start:             pushaw /* preserve BIOS registers, KRN will restore pre-lret */
 jump_mbr_segm:      ljmp    $MBR_SEGM,  $MBR /* Run the MBR into KRN */
 /******************************************************************************/
 _ret:               ret /* derefence indirect "Jcc _ret" */
 _hlt:               sti
                     hlt
+                    jmp _hlt
 /******************************************************************************/
 
 /*******************************************************************************
@@ -163,7 +164,7 @@ prep_segments:      pushw   %cs         /* copy cs to ds via stack, it's slower 
                     popw    %ds         /* ... using a register, but makes for smaller assembly. */
 #include "run_init_com1.S"              /* enable output to the serial console */
 #include "run_mbr_shell.S"              /* this will pop dx and set dl per the user's selection */
-preread_head:       xorb    %dh,        %dh /* start reading at head 0 */
+/* preread_head:       xorb    %dh,        %dh /* start reading at head 0 */
 preread_segm1:      pushw   $KRN_SEGM   /* pass the KRN_SEGM ... */
 preread_segm2:      popw    %es         /* ... to chs_read via es */
 preread_offset:     xorw    %bx,        %bx /* write starting at offset 0 */
@@ -177,43 +178,66 @@ run_kernel:         ljmp    $KRN_SEGM,  $KRN /* Run the kernel in its code segme
  ******************************************************************************/
 
 /*******************************************************************************
- * https://wiki.osdev.org/Partition_Table */
-    . = 0x1BE /* Part 1 */
+ * https://wiki.osdev.org/Partition_Table
+ * .byte: bootable flag on bit 0x80
+ * .byte: starting head
+ * .byte: starting cylsec, sector portion
+ * .byte: starting cylsec, cylinder portion
+ * .byte: filesys ID
+ * .byte: ending head
+ * .byte: ending cylsec, sector part
+ * .byte: ending cylsec, cyl part
+ * .long: starting LBA
+ * .long: quantity LBA
+ ******************************************************************************/
+    . = _start + 0x1BE /* Part 1 */
 PARTITION1:
-.byte   0x80 /* active */
-.byte   0x00 /* starts on head 0 */
-.byte   0x02 /* starts on sector 2, mbr is on 1 */
-.byte   0x00 /* cylinder zero */
-.byte   0xda /* shadow-os.img format, I agree with John Hardin https://aeb.win.tue.nl/partitions/partition_types-1.html */
-.byte   0x02 /* up to head 2 (0x80 - 0x3f - 0x3f - 0x02 == 0) */
-.byte   0x01 /* just the first two sectors on head 2 */
-.byte   0x00 /* all within cylinder zero */
-.long   0x00000001
-.long   0x0000007F
+P1.flag:    .byte   0x80 /* active */
+P1.head:    .byte   0x00 /* starts on head 0 */
+P1.cysleclo:.byte   0x02 /* starts on sector 2, mbr is on 1 */
+P1.cylsechi:.byte   0x00 /* cylinder zero */
+P1.fsid:    .byte   0xda /* shadow-os.img format, I agree with John Hardin https://aeb.win.tue.nl/partitions/partition_types-1.html */
+P1.endhead: .byte   0x02 /* up to head 2 (0x80 - 0x3f - 0x3f - 0x02 == 0) */
+P1.endcslo: .byte   0x02 /* just the first two sectors on head 2 */
+P1.endcshi: .byte   0x00 /* all within cylinder zero */
+P1.lba_off: .long   0x00000001
+P1.lba_len: .long   0x0000007F
+    . = _start + 0x1CE
 PARTITION2:
-    . = 0x1CE
-.byte   0x00 /* inactive */
-.byte   0x02 /* starts on head 2 */
-.byte   0x02 /* starts on sector 2 */
-.byte   0x00 /* cylinder zero */
-.byte   0x01 /* mkfs.fat */
-.byte   0x22 /* up to head 2 (0x80 - 0x3f - 0x3f - 0x02 == 0) */
-.byte   0x22 /* just the first two sectors on head 2 */
-.byte   0x00 /* all within cylinder zero */
-.long   0x00000080
-.long   0x00000800
+P2.flag:    .byte   0x00 /* inactive */
+P2.head:    .byte   0x02 /* starts on head 2 */
+P2.cysleclo:.byte   0x03 /* starts on sector 2 */
+P2.cylsechi:.byte   0x00 /* cylinder zero */
+P2.fsid:    .byte   0x01 /* mkfs.fat */
+P2.endhead: .byte   0x22 /* up to head 2 (0x80 - 0x3f - 0x3f - 0x02 == 0) */
+P2.endcslo: .byte   0x22 /* just the first two sectors on head 2 */
+P2.endcshi: .byte   0x00 /* all within cylinder zero */
+P2.lba_off: .long   0x00000080
+P2.lba_len: .long   0x00000800
+    . = _start + 0x1DE
 PARTITION3:
-    . = 0x1DE
-.long   0x00000000
-.long   0x00000000
-.long   0x00000000
-.long   0x00000000
+P3.flag:    .byte   0x00 /* inactive */
+P3.head:    .byte   0x22
+P3.cysleclo:.byte   0x23
+P3.cylsechi:.byte   0x00
+P3.fsid:    .byte   0x83 /* mkfs.ext2 */
+P3.endhead: .byte   0x43
+P3.endcslo: .byte   0x03
+P3.endcshi: .byte   0x00
+P3.lba_off: .long   0x00000880
+P3.lba_len: .long   0x00000800
+    . = _start + 0x1EE
 PARTITION4:
-    . = 0x1EE
-.long   0x00000000
-.long   0x00000000
-.long   0x00000000
-.long   0x00000000
+P4.flag:    .byte   0x00 /* inactive */
+P4.head:    .byte   0x43
+P4.cysleclo:.byte   0x04
+P4.cylsechi:.byte   0x00
+P4.fsid:    .byte   0x81 /* mkfs.minix */
+P4.endhead: .byte   0x64
+P4.endcslo: .byte   0x23
+P4.endcshi: .byte   0x00
+P4.lba_off: .long   0x00001080
+P4.lba_len: .long   0x00000800            
 /******************************************************************************/
 
 
