@@ -1,5 +1,5 @@
-#ifndef __INIT_COM1_S__
-#define __INIT_COM1_S__
+#ifndef __RUN_INIT_COM1_S__
+#define __RUN_INIT_COM1_S__
 
 #ifndef AVOID_INTERRUPTS
 
@@ -29,4 +29,4 @@ OUTB    ($0x0F, COM1_MODM_CTL)  /* disable loopback mode, assert both Out pins *
 #endif /* AVOID_INTERRUPTS */
 
 
-#endif /*  __INIT_COM1_S__ */
+#endif /*  __RUN_INIT_COM1_S__ */

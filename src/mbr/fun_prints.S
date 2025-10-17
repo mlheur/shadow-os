@@ -1,5 +1,5 @@
-#ifndef __PRINTS_S__
-#define __PRINTS_S__
+#ifndef __FUN_PRINTS_S__
+#define __FUN_PRINTS_S__
 
 
 _str_crlf:      .asciz "\r\n"
@@ -91,4 +91,4 @@ debug_regs:     pushw   %ax
 #endif /* DEBUG */
 /******************************************************************************/
 
-#endif /* __PRINTS_S__ */
+#endif /* __FUN_PRINTS_S__ */
