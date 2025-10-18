@@ -1,0 +1,21 @@
+{
+    "seerproject": {
+        "connectmode": {
+            "gdbserver": "localhost:1234"
+        },
+        "executable": "./objs/OpenBSD-mbr.o",
+        "postgdbcommands": [
+            "break *0x7c00",
+            "break *0x7a00+reloc",
+            "break *0x7a00+coler",
+            "break *0x7a00+do_chs",
+            "break *0x7a00+done_chs",
+            "continue"
+        ],
+        "pregdbcommands": [
+            "set arch i8086"
+        ],
+        "symbolfile": "",
+        "workingdirectory": ""
+    }
+}

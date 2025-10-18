@@ -34,3 +34,10 @@ dirs : objs dumps bin
 	test -d objs || mkdir objs
 	test -d dumps || mkdir dumps
 	test -d bin || mkdir bin
+
+OpenBSD : OpenBSD.img
+
+OpenBSD.img : dirs ./OpenBSD/mbr.S
+	gcc -g -Wa,--32 -c -o objs/OpenBSD-mbr.o ./OpenBSD/mbr.S && \
+	objcopy -O binary -j .text ./objs/OpenBSD-mbr.o ./bin/OpenBSD-mbr && \
+	cat ./bin/OpenBSD-mbr fake-hda[234].img > OpenBSD.img
