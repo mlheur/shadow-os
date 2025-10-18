@@ -7,6 +7,7 @@
     .global print_word
     .global print_long
     .global _print_nibbles
+    .global _str_crlf
 
 
 #ifdef __MBR_S__

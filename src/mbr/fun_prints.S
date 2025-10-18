@@ -62,33 +62,4 @@ print_byte:     pushw   %cx                         /* use cx as a loop counter 
                 jmp     _print_nibbles /* jumping bacwkward is faster than jumping forward */
 /******************************************************************************/
 
-
-/*******************************************************************************
- * Function: debug_regs
- * Purpose: print the registers during the int 0x13 ah=0x02 */
-#ifdef DEBUG
-dbgES:          .asciz  "ES:"
-dbgDX:          .asciz  " DX:"
-dbgCX:          .asciz  " CX:"
-dbgBX:          .asciz  " BX:"
-dbgAX:          .asciz  " AX:"
-debug_regs:     pushw   %ax
-                pushw   %ax
-                prints  (dbgES)
-                printw  (%es)
-                prints  (dbgBX)
-                printw  (%bx)
-                prints  (dbgDX)
-                printw  (%dx)
-                prints  (dbgCX)
-                printw  (%cx)
-                prints  (dbgAX)
-                popw    %ax
-                call    print_word
-                prints  (_str_crlf)
-                popw    %ax
-                ret
-#endif /* DEBUG */
-/******************************************************************************/
-
 #endif /* __FUN_PRINTS_S__ */

@@ -5,13 +5,13 @@
 #include "stack_offsets.h"
 #define PUSHED_ES       NEXT_PUSHED_OFFSET
 
-#define SAVED_READLEN   PUSHED_AL
-#define SAVED_CYLSEC    PUSHED_CX
-#define SAVED_HEAD      PUSHED_DH
-#define SAVED_DRIVE     PUSHED_DL
-#define SAVED_OFFSET    PUSHED_BX
-#define SAVED_SEGMENT   PUSHED_ES
-#define SAVED_READLIMIT PUSHED_DI
+#define SP_READLEN      PUSHED_AL
+#define SP_CYLSEC       PUSHED_CX
+#define SP_HEAD         PUSHED_DH
+#define SP_DRIVE        PUSHED_DL
+#define SP_OFFSET       PUSHED_BX
+#define SP_SEGMENT      PUSHED_ES
+#define SP_READLIMIT    PUSHED_DI
 
 
 /*******************************************************************************
@@ -24,39 +24,68 @@
 
 
 /*******************************************************************************
+ * Function: debug_regs
+ * Purpose: print the registers during the int 0x13 ah=0x02 */
+#ifdef CHS_READ_DEBUG
+dbgES:          .asciz  "ES:"
+dbgDX:          .asciz  " DX:"
+dbgCX:          .asciz  " CX:"
+dbgBX:          .asciz  " BX:"
+dbgAX:          .asciz  " AX:"
+debug_regs:     pushw   %ax
+                pushw   %ax
+                prints  (dbgES)
+                printw  (%es)
+                prints  (dbgBX)
+                printw  (%bx)
+                prints  (dbgDX)
+                printw  (%dx)
+                prints  (dbgCX)
+                printw  (%cx)
+                prints  (dbgAX)
+                popw    %ax
+                call    print_word
+                prints  (_str_crlf)
+                popw    %ax
+                ret
+#endif /* CHS_READ_DEBUG */
+/******************************************************************************/
+
+
+/*******************************************************************************
  * Each of the three wrappers below will set the whole CHS struct appropriately,
  * and jump to the next load_registers iteration.
  ******************************************************************************/
-.set limit_head, 1 + .
-wrap_head:      movb    $0x5C,          %bl /* get the metric against which we'll test limits, FF will be replaced at runtime when writing to limit_head */
-                movb    SAVED_HEAD,     %al /* get the current value */
+L1308_head = .+1
+wrap_head:      movb    $0x5C,          %bl /* get the metric against which we'll test limits, FF will be replaced at runtime when writing to L1308_head */
+                movb    SP_HEAD,        %al /* get the current value */
                 subb    %al,            %bl /* if the limit is reached ... */
                 jz      wrap_cylinder   /* ... wrap the cylinder instead, it will reset the head and sector */
                 addb    $1,             %al /* else increment the head */
-                movb    %al,            SAVED_HEAD /* and save it back */
-                movw    SAVED_CYLSEC,   %ax /* pull up the mangled cylsec ... */
+                movb    %al,            SP_HEAD /* and save it back */
+                movw    SP_CYLSEC,      %ax /* pull up the mangled cylsec ... */
                 andw    $0xFFC0,        %ax /* ... so we can keep the cylinder bits ... */
 remaining_secs: negw    %cx             /* we have to further advance the sectors by this much, figured in the subw instruction of wrap_sector */
                 addb    %cl,            %al /* add that many more to the sector ID */
-                movb    %al,            SAVED_CYLSEC /* finally save the sector ID back to the CHS struct */
+                movb    %al,            SP_CYLSEC /* finally save the sector ID back to the CHS struct */
                 jmp     load_registers  /* and go read it */
 /******************************************************************************/
-wrap_sector:    movw    SAVED_CYLSEC,   %ax /* get the 16-bit mangled cylsec address that was just read from */
+wrap_sector:    movw    SP_CYLSEC,      %ax /* get the 16-bit mangled cylsec address that was just read from */
                 andw    $0x003F,        %ax /* filter the 6-bit sector portion */
-                movzbw  SAVED_READLEN,  %bx /* recall how many sectors were successfully read */
+                movzbw  SP_READLEN,     %bx /* recall how many sectors were successfully read */
                 addw    %bx,            %ax /* advance the sector pointer that much ... */
 /* we advanced sectors by 1 **OR MORE**, check if we exceeded the sector limit */
-.set limit_cylsec, 1 + .
-                movw    $0xC5C5,        %cx /* get the last sector valid sector ID; FF will be replaced at runtime when writing to limit_cylsec */
+L1308_cylsec = .+1
+                movw    $0xC5C5,        %cx /* get the last sector valid sector ID; FF will be replaced at runtime when writing to L1308_cylsec */
                 andw    $0x003F,        %cx /* filter just the 6-bit sector portion */
                 subw    %ax,            %cx /* compare the calculated sector ID against the limit, destroys cx */
                 jb      wrap_head       /* if ax is bigger than cx then the limit was exceeded, wrap to the next head */
-                movw    %ax,            SAVED_CYLSEC /* else the calculated sector ID is valid, commit it */
+                movw    %ax,            SP_CYLSEC /* else the calculated sector ID is valid, commit it */
                 jmp     load_registers  /* go read the new sector(s) */
 /******************************************************************************/
-wrap_cylinder:  movb    $0,             SAVED_HEAD /* reset head to zero */
-                movw    SAVED_CYLSEC,   %ax /* get the current mangled address */
-                movw    $limit_cylsec,  %bx /* get the metric against which we'll test the limits, it got stored in the source operand of the movw instruction in the middle of wrap_sector. */
+wrap_cylinder:  movb    $0,             SP_HEAD /* reset head to zero */
+                movw    SP_CYLSEC,      %ax /* get the current mangled address */
+                movw    $L1308_cylsec,  %bx /* get the metric against which we'll test the limits, it got stored in the source operand of the movw instruction in the middle of wrap_sector. */
                 andw    $0xFFC0,        %ax /* filter out sectors to zero */
                 andw    $0xFFC0,        %bx /* filter out sectors to zero */
                 cmpw    %ax,            %bx /* check if the limit is reached */
@@ -77,9 +106,9 @@ adv_buf_ptr:    shlw    $5,             %ax /* within ax, convert 'sectors read'
                 addw    %ax,            %bx /* increment the segment pointer accordingly */
                 movw    %bx,            %es /* and save it back (ALU cant write to segment registers) */
 check_partial:  shrw    $5,             %ax /* convert back to 'sectors read' */
-                cmpb    %al,            SAVED_READLEN /* when the amount read differs from amount requested ... */
+                cmpb    %al,            SP_READLEN /* when the amount read differs from amount requested ... */
                 jne     chs_return      /* ... then we have nothing more to read */
-check_complete: subw    SAVED_READLIMIT,%bx /* check if the buffer pointer has totally advanced by 64k */
+check_complete: subw    SP_READLIMIT,   %bx /* check if the buffer pointer has totally advanced by 64k */
                 jb      wrap_sector     /* when 64KiB have been read, the loader is finished */
 chs_return:     del_stack_frame
                 popw    %es
@@ -106,7 +135,9 @@ inquire_geom:   xorw    %ax,            %ax /* get a zero */
                 movw    %ax,            %di /* to guard against BIOS bugs */
                 movb    $0x08,          %ah /* "CHS inquire" command */
                 int     $0x13           /* submit the inquiry */
-/* https://fd.lod.bz/rbil/interrup/bios/1308.html
+inquiry_result: jc      chs_return
+/*******************************************************************************
+ * https://fd.lod.bz/rbil/interrup/bios/1308.html
  *  AH = 00h
  *  AL = 00h on at least some BIOSes
  *  BL = drive type (AT/PS2 floppies only) (see #00242)
@@ -115,24 +146,25 @@ inquire_geom:   xorw    %ax,            %ax /* get a zero */
  *    high two bits of maximum cylinder number (bits 7-6)
  *  DH = maximum head number
  *  DL = number of drives
- *  ES:DI -> drive parameter table (floppies only) */
-save_heads1:    movl    $limit_head,  %edi
-save_cylsec1:   movl    $limit_cylsec,%esi
+ *  ES:DI -> drive parameter table (floppies only)
+ ******************************************************************************/
+save_heads1:    movl    $L1308_head,    %edi
+save_cylsec1:   movl    $L1308_cylsec,  %esi
 save_heads2:    movb    %dh,            %ds:(%edi) /* self modifying code, write this value in the source operand of the movzbw instruction at wrap_head. */
 save_cylsec2:   movw    %cx,            %ds:(%esi)  /* ditto, for the movw instruction source operand in the middle of wrap_sector */
-                movw    SAVED_SEGMENT,  %es
+                movw    SP_SEGMENT,     %es
                 movw    %es,            %bx
-                addw    %bx,            SAVED_READLIMIT
-                movb    SAVED_DRIVE,    %dl /* this was clobbered within inquire_geom */
-load_registers: movb    SAVED_HEAD,     %dh /* address the latest head */
-                movw    SAVED_CYLSEC,   %cx /* mangled cylsec value into cx */
-                movw    SAVED_OFFSET,   %bx /* es was managed so bx can remain constant, but it's been used willy-nilly in the wrap functions */
-                movb    SAVED_READLEN,  %al /* how many sectors we'd like to read, ax register has been destroyed in supporting functions */
+                addw    %bx,            SP_READLIMIT
+                movb    SP_DRIVE,       %dl /* this was clobbered within inquire_geom */
+load_registers: movb    SP_HEAD,        %dh /* address the latest head */
+                movw    SP_CYLSEC,      %cx /* mangled cylsec value into cx */
+                movw    SP_OFFSET,      %bx /* es was managed so bx can remain constant, but it's been used willy-nilly in the wrap functions */
+                movb    SP_READLEN,     %al /* how many sectors we'd like to read, ax register has been destroyed in supporting functions */
                 movb    $0x02,          %ah /* force CHS "read" command */
 
-#ifdef DEBUG
+#ifdef CHS_READ_DEBUG
                 call    debug_regs
-#endif
+#endif /* CHS_READ_DEBUG */
 /*******************************************************************************
  * CHS Read: https://fd.lod.bz/rbil/interrup/bios/1302.html
  * INT 13 - DISK - READ SECTOR(S) INTO MEMORY     
@@ -146,12 +178,12 @@ load_registers: movb    SAVED_HEAD,     %dh /* address the latest head */
  *  ES:BX -> data buffer
  ******************************************************************************/
                 int     $0x13           /* perform the read */
-#ifdef DEBUG
+#ifdef CHS_READ_DEBUG
                 pushf
                 call    debug_regs
                 popf
-#endif /* DEBUG */
-errchecking:    jnc     adv_buf_ptr     /* handle any errors */
+#endif /* CHS_READ_DEBUG */
+chs_read_result:jnc     adv_buf_ptr     /* handle any errors */
 /******************************************************************************/
 chs_failed:     subb    $0x0C,          %ah /* return code 0x0C tried to read past end of disk, this might be OK */
                 jz      adv_buf_ptr     /* handle successful read of those sectors */

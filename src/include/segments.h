@@ -5,6 +5,7 @@
 /* 0000:0000 until 0000:03FF IVT Used by the BIOS, don't write here */
 /* 0040:0000 until 0040:00FF BDA Used by the BIOS, don't write here */
 /* [0040:0100 is 0050:0000] until 7000:FFFF Conventional Memory */
+#define RELOC_SEGM      0x07A0 /* Relocate ourselves here */
 #define MBR_SEGM        0x07C0 /* BIOS loads us here */
 #define MBR_SHELL_SEGM  0x0800 /* for holding user input */
 #define MBR_SHELL_LIMIT 0x1000 /* just the 4KiB block */

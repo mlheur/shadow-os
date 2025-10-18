@@ -5,6 +5,7 @@
 
 /* #define DEBUG */
 #include "globals.h"
+#include "mbr.h"
 #include "segments.h"
 #include "prints.h"
 #include "com1.h"
@@ -119,14 +120,45 @@ $ hexdump -C bin/objcopy-mbr
  * BIOS Entry Point into MBR, testing in qemu shows we get here via lcall.
  ******************************************************************************/
     .text
-_start:             pushaw /* preserve BIOS registers, KRN will restore pre-lret */
-jump_mbr_segm:      ljmp    $MBR_SEGM,  $MBR /* Run the MBR into KRN */
+_start:
+#include "run_relocate_mbr.S"
+longjump_mbr:       ljmp    $RELOC_SEGM,$MBR
+MBR:                pushw   %dx         /* preserve this for chs_read */
+#include "run_init_com1.S"              /* enable output to the serial console */
+prep_segments_rd:   pushw   %cs         /* copy cs to ds via stack, it's slower than ... */
+prep_segments_wr:   popw    %ds         /* ... using a register, but makes for smaller assembly. */
+preread_segm1:      pushw   $MBR_SEGM   /* pass the MBR_SEGM ... */
+preread_segm2:      popw    %es         /* ... to chs_read via es */
+check_first_part:   movl    $PARTITION1,%ebx
+check_active_part:  cmpb    $0x80,      (%ebx)
+rotate_partition:   jne     next_partition
+assign_device:      popw    %dx         /* saved at MBR symbol */
+assign_head:        movb    1(%ebx),    %dh /* head of start of selected parition */
+assign_cylsec_lo:   movb    2(%ebx),    %cl /* cylsec lo of start of selected partition */
+assign_cylsec_hi:   movb    3(%ebx),    %ch /* cylsec hi of start of selected partition */
+preread_readlen:    movb    $0x01,      %al /* ah=XX unused, al=0x80 read 128 sectors at a time */
+preread_readamt:    movw    $0x0020,    %di /* Stop reading when es is advanced this much */
+preread_offset:     xorw    %bx,        %bx /* write starting at offset 0 */
+preared_read:       call    _chs_read   /* copy the bootdev to RAM */
+run_PBR:            ljmp    $MBR_SEGM,  $0 /* Run partition boot record */
 /******************************************************************************/
-_ret:               ret /* derefence indirect "Jcc _ret" */
+
+
+/******************************************************************************/
+_ret:               ret /* dereference indirect "Jcc _ret" */
+_lret:              lret /* dereference Jcc _lret */
 _hlt:               sti
                     hlt
                     jmp _hlt
 /******************************************************************************/
+
+next_partition:     addw    $0x10,          %bx
+                    cmpw    $mbr_signature, %bx
+                    je      _lret
+                    jmp     check_active_part
+
+
+
 
 /*******************************************************************************
  * Import functions for console output and disk input.
@@ -135,47 +167,6 @@ _hlt:               sti
 #include "fun_prints.S"
 #include "fun_chs_read.S"
 
-/*******************************************************************************
- * Most HDD MBRs relocate themselves to nearby, maybe cs:=0x07A0 and then load a
- * PBR from the active partition.
- * shadow-os will do something completely different, there's no attempt at
- * portability since this is an educational OS built to run in qemu as a 486 VM.
- * Strategy:
- * - Building the boot image: MBR goes on sector 1, KRN goes on sector 2.
- * - read the whole boot device to RAM 1000:0000; earlier attempts wanted to
- *   aim for 0050:0000 but this BIOS uses a stack at 0600:0FFF, that strategy
- *   trampled the stack; we'll continue using the BIOS stack.
- * - hand off to the kernel that just got loaded to 1000:0200
- * Assumptions:
- * - boot device size will be limited to 64KiB, will be exactly that size.
- * - we can terminate the read when the buffer pointer is advanced by 64KiB */
-/******************************************************************************/
-
-/*******************************************************************************
- * Function: MBR
- * Inputs: 
- * - dl, the bootdev the bios read the MBR off of
- * - best to get here via long jump so we can use the local segment offsets for
- *   all addressing */
-
-MBR:
-save_bootdev:       pushw   %dx         /* save this before com1 clobbers it */
-prep_segments:      pushw   %cs         /* copy cs to ds via stack, it's slower then ... */
-                    popw    %ds         /* ... using a register, but makes for smaller assembly. */
-#include "run_init_com1.S"              /* enable output to the serial console */
-#include "run_mbr_shell.S"              /* this will pop dx and set dl per the user's selection */
-/* preread_head:       xorb    %dh,        %dh /* start reading at head 0 */
-preread_segm1:      pushw   $KRN_SEGM   /* pass the KRN_SEGM ... */
-preread_segm2:      popw    %es         /* ... to chs_read via es */
-preread_offset:     xorw    %bx,        %bx /* write starting at offset 0 */
-preread_cylsec:     movw    $1,         %cx /* start a cylsec 0,1 */
-preread_readlen:    movb    $0x80,      %al /* ah=XX unused, al=0x80 read 128 sectors at a time */
-preread_readamt:    movw    $0x1000,    %di /* Stop reading when es is advanced this much */
-preared_read:       call    _chs_read   /* copy the bootdev to RAM */
-run_kernel:         ljmp    $KRN_SEGM,  $KRN /* Run the kernel in its code segment */
-/*******************************************************************************
- * End MBR function
- ******************************************************************************/
 
 /*******************************************************************************
  * https://wiki.osdev.org/Partition_Table
@@ -192,7 +183,7 @@ run_kernel:         ljmp    $KRN_SEGM,  $KRN /* Run the kernel in its code segme
  ******************************************************************************/
     . = _start + 0x1BE /* Part 1 */
 PARTITION1:
-P1.flag:    .byte   0x80 /* active */
+P1.flag:    .byte   0x00 /* active */
 P1.head:    .byte   0x00 /* starts on head 0 */
 P1.cysleclo:.byte   0x02 /* starts on sector 2, mbr is on 1 */
 P1.cylsechi:.byte   0x00 /* cylinder zero */
@@ -204,14 +195,14 @@ P1.lba_off: .long   0x00000001
 P1.lba_len: .long   0x0000007F
     . = _start + 0x1CE
 PARTITION2:
-P2.flag:    .byte   0x00 /* inactive */
+P2.flag:    .byte   0x80 /* active */
 P2.head:    .byte   0x02 /* starts on head 2 */
-P2.cysleclo:.byte   0x03 /* starts on sector 2 */
+P2.cysleclo:.byte   0x03 /* starts on sector 3 */
 P2.cylsechi:.byte   0x00 /* cylinder zero */
 P2.fsid:    .byte   0x01 /* mkfs.fat */
-P2.endhead: .byte   0x22 /* up to head 2 (0x80 - 0x3f - 0x3f - 0x02 == 0) */
-P2.endcslo: .byte   0x22 /* just the first two sectors on head 2 */
-P2.endcshi: .byte   0x00 /* all within cylinder zero */
+P2.endhead: .byte   0x22
+P2.endcslo: .byte   0x22
+P2.endcshi: .byte   0x00
 P2.lba_off: .long   0x00000080
 P2.lba_len: .long   0x00000800
     . = _start + 0x1DE
@@ -233,18 +224,17 @@ P4.head:    .byte   0x43
 P4.cysleclo:.byte   0x04
 P4.cylsechi:.byte   0x00
 P4.fsid:    .byte   0x81 /* mkfs.minix */
-P4.endhead: .byte   0x64
+P4.endhead: .byte   0x63
 P4.endcslo: .byte   0x23
 P4.endcshi: .byte   0x00
 P4.lba_off: .long   0x00001080
-P4.lba_len: .long   0x00000800            
+P4.lba_len: .long   0x00000800
 /******************************************************************************/
-
 
 /*******************************************************************************
  * the last 2 bytes in the sector 0 must contain the signature */
     . = _start + 0x1fe
-signature:      .short 0xAA55
+mbr_signature:  .short MBR_MAGIC
     . = _start + 0x200
 KRN:
 /******************************************************************************/

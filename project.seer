@@ -5,10 +5,17 @@
         },
         "executable": "./objs/mbr.o",
         "postgdbcommands": [
-            "break *0x7c00+invalid_user_cmd",
-            "break *0x7c00+save_heads1",
-            "break *0x7c00+errchecking",
-            "break *0x7c00+rejumping_mbr",
+            "break *0x7c00+_start",
+            "break *0x7a00+MBR",
+            "break *0x7a00+check_first_part",
+            "break *0x7a00+check_active_part",
+            "break *0x7a00+rotate_partition",
+            "break *0x7a00+assign_head",
+            "break *0x7a00+next_partition",
+            "break *0x7a00+revert_bootdev",
+            "break *0x7a00+save_heads1",
+            "break *0x7a00+inquiry_result",
+            "break *0x7a00+chs_read_result",
             "continue"
         ],
         "pregdbcommands": [
