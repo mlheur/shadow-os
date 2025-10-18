@@ -2,16 +2,19 @@
 #define __FUN_CHS_READ_S__
 
 #include "chs_read.h"
-#include "stack_offsets.h"
-#define PUSHED_ES       NEXT_PUSHED_OFFSET
 
-#define SP_READLEN      PUSHED_AL
-#define SP_CYLSEC       PUSHED_CX
-#define SP_HEAD         PUSHED_DH
-#define SP_DRIVE        PUSHED_DL
-#define SP_OFFSET       PUSHED_BX
-#define SP_SEGMENT      PUSHED_ES
-#define SP_READLIMIT    PUSHED_DI
+/* https://www.felixcloutier.com/x86/pusha:pushad */
+/* ax(16), cx(14), dx(12), bx(10), sp(8), bp(6), si(4), di(2) */
+#define SP_READLIMIT      (%esp)
+#define SP_UNUSED_SI     2(%esp)
+#define SP_UNUSED_BP     4(%esp)
+#define SP_UNUSED_SP     6(%esp)
+#define SP_OFFSET        8(%esp)
+#define SP_DRIVE        10(%esp)
+#define SP_HEAD         11(%esp)
+#define SP_CYLSEC       12(%esp)
+#define SP_READLEN      14(%esp)
+#define SP_SEGMENT      16(%esp)
 
 
 /*******************************************************************************
@@ -110,7 +113,7 @@ check_partial:  shrw    $5,             %ax /* convert back to 'sectors read' */
                 jne     chs_return      /* ... then we have nothing more to read */
 check_complete: subw    SP_READLIMIT,   %bx /* check if the buffer pointer has totally advanced by 64k */
                 jb      wrap_sector     /* when 64KiB have been read, the loader is finished */
-chs_return:     del_stack_frame
+chs_return:     popaw
                 popw    %es
                 ret
 /******************************************************************************/
@@ -127,7 +130,7 @@ chs_return:     del_stack_frame
  *  al: the number of sectors to read per IOP
  ******************************************************************************/
 _chs_read:      pushw   %es
-                new_stack_frame
+                pushaw
 /* Inquire from the BIOS: what are the CHS limits of the boot device,
  * those are needed throughout the CHS incrementer */
 inquire_geom:   xorw    %ax,            %ax /* get a zero */
