@@ -3,18 +3,34 @@
 
 #include "mbr.h"
 #include "segments.h"
+#include "memcpy.h"
 
-#define _mbr_memcpy(AMT) movl $AMT,%ecx; cld; rep movsl
+relocmbr_set_segments:
+    movw    %cs,%ax
+    movw    %ax,%ds
+    subw    $(LEN16_MBR>>4),%ax
+    movw    %ax,%es
 
-memcpy_mbr_from:
-pushw   $MBR_SEGM<<4
-popw    %si
-memcpy_mbr_to:
-pushw   $RELOC_SEGM<<4
-popw    %di
-_mbr_memcpy(0x80)
-cmpw    $MBR_MAGIC,-2(%edi)
-jne     _ret
+relocmbr_copy_mbr:
+    _unsafe_memcpy_common_index(
+        0,
+        LEN16_MBR
+    )
 
+relocmbr_verify:
+    cmpw    $MBR_MAGIC,         %es:(mbr_signature)
+    jne     _return_to_bios
+
+relocmbr_align_partition_table:
+    PTR16_PARTITION_TABLE = LEN16_MBR - LEN16_PARTITION_TABLE
+    _unsafe_memcpy_unique_index(
+        mbr_partition_table,
+        PTR16_PARTITION_TABLE,
+        LEN16_PARTITION_TABLE
+    )
+
+relocmbr_ljmp_relocated:
+    ljmp    $(SEGM_BIOSBOOT-(LEN16_MBR>>4)),     $1f
+1:
 
 #endif /* __RUN_RELOCATE_MBR_S__ */

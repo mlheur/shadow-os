@@ -8,21 +8,21 @@ DumpRAM:        pushaw
                 movl        $0xF000,        %ecx /* use cx as copy of ds register during IVT reads */
                 movw        %ds,            %dx  /* use dx as copy of ds register during prints reads */
 
-1:              prints      (msg_vec_seg)
+1:              prints      ($msg_vec_seg)
                 movw        %cx,            %ax
                 call        print_word
 
-                prints      (msg_vec_off)
+                prints      ($msg_vec_off)
                 movw        %bx,            %ax
                 call        print_word
 
-                prints      (msg_value)
+                prints      ($msg_value)
                 movw        %cx,            %ds
                 movl        (%ebx),         %eax
                 movw        %dx,            %ds
                 call        print_long
 
-                prints      (_str_crlf)
+                prints      ($_str_crlf)
 
                 subw        $4,             %bx /* the last offset is 0xFFFF */
                 jnc         1b                  /* loop until the carry flag gets set rolling past 0xFFFF */

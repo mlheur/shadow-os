@@ -4,25 +4,15 @@
             "gdbserver": "localhost:1234"
         },
         "executable": "./objs/mbr.o",
-        "postgdbcommands": [
-            "break *0x7c00+_start",
-            "break *0x7a00+MBR",
-            "break *0x7a00+check_first_part",
-            "break *0x7a00+check_active_part",
-            "break *0x7a00+rotate_partition",
-            "break *0x7a00+assign_head",
-            "break *0x7a00+next_partition",
-            "break *0x7a00+revert_bootdev",
-            "break *0x7a00+save_heads1",
-            "break *0x7a00+inquiry_result",
-            "break *0x7a00+chs_read_result",
-            "continue"
-        ],
-        "pregdbcommands": [
-            "set arch i8086",
-            "add-symbol-file ./objs/krn.o 0x10200"
-        ],
         "symbolfile": "",
-        "workingdirectory": ""
+        "workingdirectory": "",
+        "pregdbcommands": [
+            "add-symbol-file ./objs/krn.o 0x7C00",
+            "set arch i8086"
+        ],
+        "postgdbcommands": [
+            "break *0x7d76",
+            "continue"
+        ]
     }
 }

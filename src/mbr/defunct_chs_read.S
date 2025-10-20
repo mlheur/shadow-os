@@ -37,15 +37,15 @@ dbgBX:          .asciz  " BX:"
 dbgAX:          .asciz  " AX:"
 debug_regs:     pushw   %ax
                 pushw   %ax
-                prints  (dbgES)
+                prints  ($dbgES)
                 printw  (%es)
-                prints  (dbgBX)
+                prints  ($dbgBX)
                 printw  (%bx)
-                prints  (dbgDX)
+                prints  ($dbgDX)
                 printw  (%dx)
-                prints  (dbgCX)
+                prints  ($dbgCX)
                 printw  (%cx)
-                prints  (dbgAX)
+                prints  ($dbgAX)
                 popw    %ax
                 call    print_word
                 prints  (_str_crlf)
@@ -59,7 +59,7 @@ debug_regs:     pushw   %ax
  * Each of the three wrappers below will set the whole CHS struct appropriately,
  * and jump to the next load_registers iteration.
  ******************************************************************************/
-L1308_head = .+1
+                L1308_head = .+1
 wrap_head:      movb    $0x5C,          %bl /* get the metric against which we'll test limits, FF will be replaced at runtime when writing to L1308_head */
                 movb    SP_HEAD,        %al /* get the current value */
                 subb    %al,            %bl /* if the limit is reached ... */
@@ -78,7 +78,7 @@ wrap_sector:    movw    SP_CYLSEC,      %ax /* get the 16-bit mangled cylsec add
                 movzbw  SP_READLEN,     %bx /* recall how many sectors were successfully read */
                 addw    %bx,            %ax /* advance the sector pointer that much ... */
 /* we advanced sectors by 1 **OR MORE**, check if we exceeded the sector limit */
-L1308_cylsec = .+1
+                L1308_cylsec = .+1
                 movw    $0xC5C5,        %cx /* get the last sector valid sector ID; FF will be replaced at runtime when writing to L1308_cylsec */
                 andw    $0x003F,        %cx /* filter just the 6-bit sector portion */
                 subw    %ax,            %cx /* compare the calculated sector ID against the limit, destroys cx */
@@ -161,6 +161,7 @@ save_cylsec2:   movw    %cx,            %ds:(%esi)  /* ditto, for the movw instr
                 movb    SP_DRIVE,       %dl /* this was clobbered within inquire_geom */
 load_registers: movb    SP_HEAD,        %dh /* address the latest head */
                 movw    SP_CYLSEC,      %cx /* mangled cylsec value into cx */
+                rorw    %cx
                 movw    SP_OFFSET,      %bx /* es was managed so bx can remain constant, but it's been used willy-nilly in the wrap functions */
                 movb    SP_READLEN,     %al /* how many sectors we'd like to read, ax register has been destroyed in supporting functions */
                 movb    $0x02,          %ah /* force CHS "read" command */

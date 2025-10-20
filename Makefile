@@ -14,7 +14,9 @@ clean :
 	rm -f ${IMAGE} ./bin/* ./objs/* ./dumps/*
 
 ${IMAGE} : ${OBJECTS}
-	ld ${LDOPTS} -o ${IMAGE} ${OBJECTS} && \
+	ld ${LDOPTS} -o ./bin/mbr ./objs/mbr.o
+	ld ${LDOPTS} -o ./bin/krn ./objs/krn.o
+	cat ./bin/mbr ./bin/krn > ${IMAGE}
 	./helpers/add_padding.ksh ${IMAGE} && \
 	cat ${IMAGE} fake-hda[234].img > new-${IMAGE} && mv new-${IMAGE} ${IMAGE}
 
@@ -27,7 +29,7 @@ objs/mbr.o : dirs ${INCDIR}/* ./src/mbr/*
 objs/krn.o : dirs ${INCDIR}/* ./src/krn/*
 	gcc ${GASOPTS} -o ./objs/krn.o ./src/krn/krn.S && \
 	objcopy -O binary -j .text ./objs/krn.o ./bin/objcopy-krn && \
-	objdump -M att -m i386 -d ./objs/krn.o > ./dumps/krn.dump && \
+	objdump ${OBJOPTS} -d ./objs/krn.o > ./dumps/krn.dump && \
 	nm -g ./objs/krn.o > ./dumps/krn.symbols
 
 dirs : objs dumps bin

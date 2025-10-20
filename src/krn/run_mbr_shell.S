@@ -43,8 +43,7 @@ invalid_user_cmd:   jz      _hlt                    /* invalid user input, halt 
                     addw    $1,                     %cx
                     jmp     1b
 /* Pack data in the code, this is a good hiding spot */
-mbr_shell_data:
-.set mbr_shell_lut_start, .
+mbr_shell_lut_start:
 mbr_shell_lut_ENT:  .word   0x000d                  /* user hit enter and nothing else */
 mbr_shell_ptr_ENT:  .word   mbr_shell_fn_ENT
 mbr_shell_lut_02:   .word   0x0d32                  /* Menu Item 2: boot part 2 */

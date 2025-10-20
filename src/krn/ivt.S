@@ -9,23 +9,23 @@ DumpIVT:        pushaw
                 movl        %ebx,           %ecx /* use cx as copy of ds register during IVT reads */
                 movw        %ds,            %dx  /* use dx as copy of ds register during prints reads */
 
-1:              prints      (msg_interrupt)
+1:              prints      ($msg_interrupt)
                 movw        %bx,            %ax
                 call        print_byte
 
-                prints      (msg_vec_seg)
+                prints      ($msg_vec_seg)
                 movw        %cx,            %ds
                 movw        2(,%ebx,4), %ax
                 movw        %dx,            %ds
                 call        print_word
 
-                prints      (msg_vec_off)
+                prints      ($msg_vec_off)
                 movw        %cx,            %ds
                 movw        (,%ebx,4),  %ax
                 movw        %dx,            %ds
                 call        print_word
 
-                prints      (_str_crlf)
+                prints      ($_str_crlf)
 
                 addb        $1,             %bl /* the last interrupt is 0xFF */
                 jnc         1b                  /* loop until the carry flag gets set rolling past 0xFF */
