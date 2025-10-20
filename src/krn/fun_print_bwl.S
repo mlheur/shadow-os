@@ -8,7 +8,7 @@
  *  eax: The binary data to send out the port; destroyed completion.
  ******************************************************************************/
 
-#define _print_setup(N) pushw %dx; movw $COM1,%dx; pushw %cx; movw $(-4+4*N),%cx
+#define _print_setup(N) pushw %dx; pushw %cx; movw $COM1,%dx; movw $(-4+8*N),%cx
 #define _print_done  popw %cx; popw %dx
 
 /*******************************************************************************
