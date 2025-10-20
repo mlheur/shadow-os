@@ -51,8 +51,8 @@ SHADOW_OS:
 #include "run_init_com1.S"
     prints  ($osname)
     prints  ($_str_crlf)
-    call    DumpIVT
-/*  call    DumpRAM */
+    call    DumpIVT /**/
+    call    DumpRAM /**/
     lret    /* return to BIOS */
 /******************************************************************************/
 
