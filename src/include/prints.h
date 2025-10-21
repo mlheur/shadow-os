@@ -9,34 +9,26 @@
 
 #ifndef prints
 #define prints(s) \
-    pushl   %esi; \
     movl    s, %esi; \
-    call    print_string; \
-    popl    %esi;
+    call    print_string
 #endif /* prints */
 
 #ifndef printl
 #define printl(l) \
-    pushl   %eax; \
     movl    l, %eax; \
-    call    print_long; \
-    popl    %eax
+    call    print_long
 #endif /* printl */
 
 #ifndef printw
 #define printw(w) \
-    pushl   %eax; \
     movzwl  w, %eax; \
-    call    print_word; \
-    popl    %eax
+    call    print_word
 #endif /* printw */
 
 #ifndef printb
 #define printb(b) \
-    pushl   %eax; \
     movzbl  b, %eax; \
-    call    print_byte; \
-    popl    %eax
+    call    print_byte
 #endif /* printb */
 
 #endif /* __PRINTS_H__ */

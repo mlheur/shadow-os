@@ -1,14 +1,11 @@
 #ifndef __MBR_S__
 #define __MBR_S__
 
-#define __16BIT__
-#include "system_bits.h"
+.code16
 
-/* #define DEBUG /* Enable debugging */
 #include "mbr.h"
 #include "segments.h"
 #include "prints.h"
-#include "lba_read.h"
 
 /*******************************************************************************
  * BIOS hands over to MBR:
@@ -21,13 +18,21 @@
  ******************************************************************************/
     .text
 _start:
-    ljmp    $SEGM_BIOSBOOT, $1f
-1:
+    ljmp    $SEGM_BIOSBOOT,         $_mbr
+/******************************************************************************/
+_finish:
+    lret
+/******************************************************************************/
+#include "fun_lba_read.S"
+/******************************************************************************/
 
-#include "run_relocate_mbr.S"
-#include "run_lba_inquiry.S"
 
 /******************************************************************************/
+_mbr:
+
+#include "run_relocate_mbr.S"       /* destroys cx,ds,es */
+#include "run_lba_inquiry.S"        /* destroys ax,cx,bx */
+
 mbr_check_first_part:
     movl    $PTR16_PARTITION_TABLE, %esi
 
@@ -52,11 +57,11 @@ mbr_set_lba_target:
 
 mbr_load_active_pbr:
     call    _lba_read
-    jc      _return_to_bios
+    jc      _finish
 
 mbr_check_is_bootable:
     cmpw    $MBR_MAGIC,             (LEN16_MBR+mbr_signature)
-    jne     _return_to_bios
+    jne     _finish
     
 mbr_run_active_pbr:
     xorw    %ax,%ax
@@ -67,7 +72,6 @@ mbr_run_active_pbr:
     movw    %ax,%di
     movw    %ax,%ds
     movw    %ax,%es
-    cld
     /* dx should still contain bootdev from lba_read */
     ljmp    $0,         $(_start+(SEGM_BIOSBOOT<<4))
 /******************************************************************************/
@@ -77,13 +81,6 @@ mbr_next_partition:
     jne     mbr_check_active_part
     ret
 /******************************************************************************/
-_return_to_bios:
-    lret
-/******************************************************************************/
-
-
-#include "fun_lba_read.S"
-
 
 /******************************************************************************/
     . = _start + 0x1BE /* assert assembler error if MBR is too big */

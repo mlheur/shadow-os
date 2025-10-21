@@ -11,7 +11,7 @@
             "set arch i8086"
         ],
         "postgdbcommands": [
-            "break *0x7d76",
+            "break *0x7C00",
             "continue"
         ]
     }

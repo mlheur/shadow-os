@@ -1,15 +1,11 @@
 #ifndef __KRN_S__
 #define __KRN_S__
 
-
-#define __16BIT__
-#include "system_bits.h"
-
+.code16
 
 #include "mbr.h"
 #include "segments.h"
 #include "prints.h"
-
 
 /*******************************************************************************
  * The sequence of events so far:
@@ -26,11 +22,8 @@
     .text
 _start:
 0:  ljmp    $SEGM_BIOSBOOT,$1f
-1:  movw    %cs,%ax
-    movw    %ax,%ds
-    movw    %ax,%es
-    movw    %ax,%fs
-    movw    %ax,%gs
+1:  pushw   %cs
+    popw    %ds
     jmp     SHADOW_OS
 /******************************************************************************/
 osname: .asciz "(SHADOW)"
@@ -52,15 +45,12 @@ SHADOW_OS:
     prints  ($osname)
     prints  ($_str_crlf)
     call    DumpIVT /**/
-    call    DumpRAM /**/
+/*  call    DumpRAM /**/
     lret    /* return to BIOS */
 /******************************************************************************/
 
 /******************************************************************************/
     . = _start + 0x1FE /* Proper MBRs won't boot us without this */
 .word   MBR_MAGIC
-
-
-
 
 #endif /* __KRN_S__ */
