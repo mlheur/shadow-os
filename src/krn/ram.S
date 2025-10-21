@@ -3,33 +3,21 @@
 
 msg_value:      .asciz " value:0x"
 DumpRAM:        pushaw
-                xorl        %ebx,           %ebx /* start at offset 0x0000 */
-                subw        $4,             %bx
-                movl        $0xF000,        %ecx /* use cx as copy of ds register during IVT reads */
-                movw        %ds,            %dx  /* use dx as copy of ds register during prints reads */
-
+                movw        $0xF000,        %bx
+2:              movw        %bx,            %es /* segment 0xF000 */
+                movw        $0xFFFC,        %bx /* offsets 0xFFFC-0xFFFF */
 1:              prints      ($msg_vec_seg)
-                movw        %cx,            %ax
-                call        print_word
-
+                printw      (%es)
                 prints      ($msg_vec_off)
-                movw        %bx,            %ax
-                call        print_word
-
+                printw      (%bx)
                 prints      ($msg_value)
-                movw        %cx,            %ds
-                movl        (%ebx),         %eax
-                movw        %dx,            %ds
-                call        print_long
-
+                printl      (%es:(%ebx))
                 prints      ($_str_crlf)
-
-                subw        $4,             %bx /* the last offset is 0xFFFF */
-                jnc         1b                  /* loop until the carry flag gets set rolling past 0xFFFF */
-
-                subw        $0x1000,        %cx /* same like above */
-                jnc         1b
-
+                subw        $4, %bx
+                jnc         1b /* loop until the carry flag gets set rolling below offset 0x0000 */
+                movw        %es,            %bx
+                subw        $0x1000,        %bx
+                jnc         2b
                 popaw
                 ret
 

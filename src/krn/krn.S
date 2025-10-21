@@ -45,7 +45,7 @@ SHADOW_OS:
     prints  ($osname)
     prints  ($_str_crlf)
     call    DumpIVT /**/
-/*  call    DumpRAM /**/
+    call    DumpRAM /**/
     lret    /* return to BIOS */
 /******************************************************************************/
 

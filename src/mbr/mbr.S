@@ -26,7 +26,6 @@ _finish:
 #include "fun_lba_read.S"
 /******************************************************************************/
 
-
 /******************************************************************************/
 _mbr:
 
@@ -66,14 +65,12 @@ mbr_check_is_bootable:
 mbr_run_active_pbr:
     xorw    %ax,%ax
     movw    %ax,%cx
-    /* guard dx */
     movw    %ax,%bx
     movw    %ax,%si
     movw    %ax,%di
     movw    %ax,%ds
     movw    %ax,%es
-    /* dx should still contain bootdev from lba_read */
-    ljmp    $0,         $(_start+(SEGM_BIOSBOOT<<4))
+    ljmp    $0,                     $(_start+(SEGM_BIOSBOOT<<4))
 /******************************************************************************/
 mbr_next_partition:
     addw    $LEN16_PARTITION_ENTRY, %si
@@ -92,6 +89,5 @@ mbr_signature:
     . = _start + 0x200 /* assert assembler error if MBR_MAGIC is too big */
     LEN16_MBR = . - _start
 /******************************************************************************/
-
 
 #endif /* __MBR_S__ */

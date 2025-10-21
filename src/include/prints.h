@@ -21,13 +21,13 @@
 
 #ifndef printw
 #define printw(w) \
-    movzwl  w, %eax; \
+    movw    w, %ax; \
     call    print_word
 #endif /* printw */
 
 #ifndef printb
 #define printb(b) \
-    movzbl  b, %eax; \
+    movb    b, %al; \
     call    print_byte
 #endif /* printb */
 
