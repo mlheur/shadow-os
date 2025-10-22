@@ -23,39 +23,35 @@ _start:
 _finish:
     lret
 /******************************************************************************/
-#include "fun_lba_read.S"
-/******************************************************************************/
 
 /******************************************************************************/
 _mbr:
-
 #include "run_relocate_mbr.S"       /* destroys cx,ds,es */
 #include "run_lba_inquiry.S"        /* destroys ax,cx,bx */
 
-mbr_check_first_part:
-    movl    $PTR16_PARTITION_TABLE, %esi
+mbr_movw_cs_ds:
+    pushw   %cs
+    popw    %ds
 
-mbr_check_active_part:
+mbr_set_esi_first_partition:
+    movw    $PTR16_PARTITION_TABLE, %si
+
+mbr_is_partition_active:
     cmpb    $0x80,                  %cs:(%esi)
-
-mbr_rotate_partition:
     jne     mbr_next_partition
 
-mbr_set_readamt:
-    andl    $0x0000FFFF,            %edx
-    orl     $0x00010000,            %edx
-
-mbr_set_lba_lolong:
-    movl    %cs:8(%esi),            %ecx
-
-mbr_set_lba_hilong:
-    xorl    %ebx,                   %ebx
-
-mbr_set_lba_target:
-    movl    $SEGM_BIOSBOOT << 16,   %eax
+mbr_use_partition_entry_as_lbacmd_packet:
+    xorl    %eax,                   %eax        /* get a zero */
+    movb    $0x10,                  %ds:(%esi)  /* save packet size */
+    movb    %al,                    %ds:1(%esi) /* save magic: 0x00 */
+    movw    $1,                     %ds:2(%esi) /* save readlen */
+    movw    %ax,                    %ds:4(%esi) /* save offset: 0x0000 */
+    movw    $SEGM_BIOSBOOT,         %ds:6(%esi) /* save segment */
+    movl    %eax,                   %ds:12(%esi)/* lba high: 0x00000000 */
 
 mbr_load_active_pbr:
-    call    _lba_read
+    movw    $0x4200,                %ax         /* lba "read" */
+    int     $0x13
     jc      _finish
 
 mbr_check_is_bootable:
@@ -73,9 +69,9 @@ mbr_run_active_pbr:
     ljmp    $0,                     $(_start+(SEGM_BIOSBOOT<<4))
 /******************************************************************************/
 mbr_next_partition:
-    addw    $LEN16_PARTITION_ENTRY, %si
-    cmpw    $LEN16_MBR,             %si
-    jne     mbr_check_active_part
+    addw    $LEN16_PARTITION_ENTRY, %si /* increment */
+    cmpw    $LEN16_MBR,             %si /* check for rollover */
+    jne     mbr_is_partition_active /* not rolled over, test the partition */
     ret
 /******************************************************************************/
 
