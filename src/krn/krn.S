@@ -1,14 +1,15 @@
 #ifndef __KRN_S__
 #define __KRN_S__
 
-.code16
+    .code16
+    .text
 
 #include "mbr.h"
 #include "segments.h"
 #include "prints.h"
 
-/* #define USE_TELETYPE */
-#define USE_SERIALIO
+/* #define USE_TELETYPE /**/
+#define USE_SERIALIO /**/
 
 /*******************************************************************************
  * The sequence of events so far:
@@ -22,7 +23,6 @@
  *      MBR passes the bootdevice ID to SHADOW_OS via dl register
  *       SHADOW_OS was loaded at 0000:7C00, MBR long jumps here and here we are.
  ******************************************************************************/
-    .text
 _start:
 0:  ljmp    $SEGM_BIOSBOOT,$1f
 1:  pushw   %cs

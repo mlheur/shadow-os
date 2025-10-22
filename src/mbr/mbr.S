@@ -1,7 +1,8 @@
 #ifndef __MBR_S__
 #define __MBR_S__
 
-.code16
+    .code16
+    .text
 
 #include "mbr.h"
 #include "segments.h"
@@ -16,9 +17,13 @@
  *  - and that only 512 bytes of the bootsector have been loaded.
  * -- https://wiki.osdev.org/System_Initialization_(x86)
  ******************************************************************************/
-    .text
 _start:
     ljmp    $SEGM_BIOSBOOT,         $_mbr
+/******************************************************************************/
+mbr_next_partition:
+    addw    $LEN16_PARTITION_ENTRY, %si /* increment */
+    cmpw    $LEN16_MBR,             %si /* check for rollover */
+    jne     mbr_is_partition_active /* not rolled over, test the partition */
 /******************************************************************************/
 _finish:
     lret
@@ -59,20 +64,7 @@ mbr_check_is_bootable:
     jne     _finish
     
 mbr_run_active_pbr:
-    xorw    %ax,%ax
-    movw    %ax,%cx
-    movw    %ax,%bx
-    movw    %ax,%si
-    movw    %ax,%di
-    movw    %ax,%ds
-    movw    %ax,%es
     ljmp    $0,                     $(_start+(SEGM_BIOSBOOT<<4))
-/******************************************************************************/
-mbr_next_partition:
-    addw    $LEN16_PARTITION_ENTRY, %si /* increment */
-    cmpw    $LEN16_MBR,             %si /* check for rollover */
-    jne     mbr_is_partition_active /* not rolled over, test the partition */
-    ret
 /******************************************************************************/
 
 /******************************************************************************/
