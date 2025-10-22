@@ -8,8 +8,10 @@
 
 /******************************************************************************/
 print_string:
+#ifdef USE_SERIALIO
     movw    $SERIALOUT, %dx
     movw    %fs:(%edx), %dx
+#endif /* USE_SERIALIO */
 print_string_next_byte:
 1:  lodsb               /* copy the character to al, increment si */
     testb   %al,        %al /* test if it is the null terminator */

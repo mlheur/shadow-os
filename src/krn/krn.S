@@ -7,6 +7,9 @@
 #include "segments.h"
 #include "prints.h"
 
+/* #define USE_TELETYPE */
+#define USE_SERIALIO
+
 /*******************************************************************************
  * The sequence of events so far:
  * BIOS code sits in ROM

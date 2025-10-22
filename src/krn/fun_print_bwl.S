@@ -13,8 +13,12 @@
  * Purpose: convert 1, 2 or 4 bytes into to ascii; and send them out COM1 */
 print_word:
     _print_setup(2)
+#ifdef USE_SERIALIO
 2:  movw    $SERIALOUT,     %dx  /* Ralf Brown says MEM 0040h:0000h - BASE I/O ADDRESS OF FIRST SERIAL I/O PORT */
     movw    %fs:(%edx),     %dx  /* serial port address is loaded */
+#else
+2:
+#endif /* USE_SERIALIO */
     pushl   %ebx                 /* use ebx as a backup of eax */
     movl    %eax,           %ebx /* make the backup */
 1:  shrl    %cl,            %eax /* get the nibble */

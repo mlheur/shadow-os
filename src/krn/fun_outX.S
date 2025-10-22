@@ -17,12 +17,18 @@ outXa:
 /*******************************************************************************
  * send a byte out the given serial port */
 outXb:
+#ifdef USE_TELETYPE
+    movb    $0x0E,  %ah
+    int     $0x10
+#endif /* USE_TELETYPE */
+#ifdef USE_SERIALIO
     outb    %al,    %dx
     addw    $5,     %dx /* watch the line status register for completion */
 1:  inb     %dx,    %al /* grab the latest line status register value */
     testb   $0x20,  %al /* when bit 0x20 is set, the write is complete */
     jz      1b
     subw    $5,     %dx /* revert to the buffer register */
+#endif /* USE_SERIALIO */
     ret
 /******************************************************************************/
 
