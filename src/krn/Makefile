@@ -16,7 +16,10 @@ ASFLAGS  	:= -I$(INCDIR) -g -Wa,--32 -c
 LD       	:= ld
 LDFLAGS  	:= -static -s -dT $(LDSCRIPT)
 
-$(OUTPUT) : $(OBJECTS)
+.PHONY : $(MODULE)
+$(MODULE) : $(OUTPUT)
+
+$(OUTPUT) : $(OBJECTS) $(LDSCRIPT)
 	$(LD) $(LDFLAGS) -o $(OUTPUT)
 
 $(OBJDIR)/%.o : %.S $(INCLUDES) $(SOURCES)
