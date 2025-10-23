@@ -23,7 +23,7 @@ _start:
 mbr_next_partition:
     addw    $LEN16_PARTITION_ENTRY, %si /* increment */
     cmpw    $LEN16_MBR,             %si /* check for rollover */
-    jne     mbr_is_partition_active /* not rolled over, test the partition */
+    jb      mbr_is_partition_active /* not rolled over, test the partition */
 /******************************************************************************/
 _finish:
     lret
