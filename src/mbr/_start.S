@@ -13,7 +13,7 @@
  *  - and that only 512 bytes of the bootsector have been loaded.
  * -- https://wiki.osdev.org/System_Initialization_(x86)
  ******************************************************************************/
-mbr_start:
+_start:
 /******************************************************************************/
 relocmbr_set_segments:
     movw    $(SEGM_BIOSBOOT),               %cx

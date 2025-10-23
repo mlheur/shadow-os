@@ -1,5 +1,5 @@
 MODULE 		:= mbr
-COMPONENTS  := mbr partition_table mbr_signature
+COMPONENTS  := _start mbr_partition_table mbr_signature
 
 INCDIR 		:= ../include
 BINDIR      := ../../bin
