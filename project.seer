@@ -7,7 +7,8 @@
         "symbolfile": "",
         "workingdirectory": "",
         "pregdbcommands": [
-            "add-symbol-file ./objs/krn.o 0x7C00",
+            "add-symbol-file ./objs/mbr.o 0x7C00",
+            "add-symbol-file ./objs/mbr.o 0x7A00",
             "set arch i8086"
         ],
         "postgdbcommands": [

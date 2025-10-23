@@ -20,54 +20,49 @@
  * -- https://wiki.osdev.org/System_Initialization_(x86)
  ******************************************************************************/
 _start:
-    ljmp    $SEGM_BIOSBOOT,         $_mbr
-/******************************************************************************/
-mbr_next_partition:
-    addw    $sizeof_partition_entry, %si /* increment */
-    cmpw    $sizeof_MBR,             %si /* check for rollover */
-    jb      mbr_is_partition_active /* not rolled over, test the partition */
-/******************************************************************************/
-_finish:
-    lret
-/******************************************************************************/
-
-/******************************************************************************/
-_mbr:
 #include "run_relocate_mbr.S"       /* destroys cx,ds,es */
 #include "run_lba_inquiry.S"        /* destroys ax,cx,bx */
 
-mbr_movw_cs_ds:
-    pushw   %cs
-    popw    %ds
-
 mbr_set_esi_first_partition:
-    movw    $relocated_partition_table, %si
+    movw    $relocated_partition_table,     %si
 
 mbr_is_partition_active:
-    cmpb    $0x80,                  %cs:(%esi)
+    cmpb    $0x80,                    %es:(%esi)
     jne     mbr_next_partition
 
+mbr_movw_cs_ds:
+    pushw   %es
+    popw    %ds
+
 mbr_use_partition_entry_as_lbacmd_packet:
-    xorl    %eax,                   %eax        /* get a zero */
-    movb    $0x10,                  %ds:(%esi)  /* save packet size */
-    movb    %al,                    %ds:1(%esi) /* save magic: 0x00 */
-    movw    $1,                     %ds:2(%esi) /* save readlen */
-    movw    %ax,                    %ds:4(%esi) /* save offset: 0x0000 */
-    movw    $SEGM_BIOSBOOT,         %ds:6(%esi) /* save segment */
-    movl    %eax,                   %ds:12(%esi)/* lba high: 0x00000000 */
+    xorl    %eax,                          %eax  /* get a zero */
+    movb    $0x10,                        (%esi) /* save packet size */
+    movb    %al,                         1(%esi) /* save magic: 0x00 */
+    movw    $1,                          2(%esi) /* save readlen */
+    movw    %ax,                         4(%esi) /* save offset: 0x0000 */
+    movw    $SEGM_BIOSBOOT,              6(%esi) /* save segment */
+    movl    %eax,                       12(%esi) /* lba high: 0x00000000 */
 
 mbr_load_active_pbr:
-    movw    $0x4200,                %ax         /* lba "read" */
+    movw    $0x4200,                        %ax  /* lba "read" */
     int     $0x13
     jc      _finish
 
 mbr_check_is_bootable:
-    cmpw    $MBR_MAGIC,             (sizeof_MBR+mbr_signature)
+    cmpw    $MBR_MAGIC, (sizeof_MBR+mbr_signature)
     jne     _finish
     
 mbr_run_active_pbr:
-    ljmp    $0,                     $(_start+(SEGM_BIOSBOOT<<4))
+    jmp     _start+sizeof_MBR
+
 /******************************************************************************/
+mbr_next_partition:
+    addw    $sizeof_partition_entry,       %si /* increment */
+    cmpw    $sizeof_MBR,                   %si /* check for rollover */
+    jb      mbr_is_partition_active        /* not rolled over, test the partition */
+/******************************************************************************/
+_finish:
+    lret
 
 /******************************************************************************/
     . = ptr_mbr_partition_table

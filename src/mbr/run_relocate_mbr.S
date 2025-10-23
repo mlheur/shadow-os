@@ -5,7 +5,7 @@
 #include "segments.h"
 
 relocmbr_set_segments:
-    movw    %cs,                                %cx
+    movw    $(SEGM_BIOSBOOT),                   %cx
     movw    %cx,                                %ds
     subw    $(sizeof_MBR>>4),                   %cx
     movw    %cx,                                %es
@@ -29,8 +29,8 @@ relocmbr_align_partition_table:
     movw    $sizeof_partition_table/4,          %cx
     rep     movsl
 
-relocmbr_ljmp_relocated:
-    ljmp    $(SEGM_BIOSBOOT-(sizeof_MBR>>4)),   $1f
+relocmbr_run_relocaed_mbr:
+    jmp     1f-sizeof_MBR
 1:
 
 #endif /* __RUN_RELOCATE_MBR_S__ */
