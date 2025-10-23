@@ -13,9 +13,13 @@ ${IMAGE} : $(BINARIES)
 	cat ${IMAGE} fake-hda[234].img > new-${IMAGE} && mv new-${IMAGE} ${IMAGE}
 
 $(BINARIES) : $(SOURCES) $(SUBMAKES)
-	for MOD in $(MODULES); do $(MAKE) $$MOD -C ./src/$${MOD}/ || exit; done
+	@for MOD in $(MODULES); do \
+		$(MAKE) $${MOD} -C ./src/$${MOD}/ || exit; \
+	done
 
 .PHONY : clean
 clean :
-	for MOD in $(MODULES); do $(MAKE) clean -C ./src/$${MOD}/; done
-	rm -f ${IMAGE}
+	@for MOD in $(MODULES); do \
+		$(MAKE) clean -C ./src/$${MOD}/; \
+	done
+	@rm -f ${IMAGE}
