@@ -1,11 +1,15 @@
+/* hard constants, chosen by IBM PC engineers */
 mbr_start               = 0x0000;
 mbr_partition_table     = 0x01BE;
 mbr_signature           = 0x01FE;
 sizeof_MBR              = 0x0200;
 
+/* calculated constants from hard constants and computed symbols */
+sizeof_partition_entry  = sizeof_partition_table / 4;
 sizeof_MBR_magic        = mbr_start + sizeof_MBR - mbr_signature;
 aligned_partition_table = mbr_partition_table + sizeof_MBR_magic;
 
+/* Main linker script */
 ENTRY(mbr_start)
 SECTIONS {
     .text : {
