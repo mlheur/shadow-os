@@ -1,6 +1,8 @@
 #ifndef __IVT_S__
 #define __IVT_S__
 
+#include "prints.h"
+
 msg_interrupt:  .asciz "int:0x"
 msg_vec_seg:    .asciz " segment:0x"
 msg_vec_off:    .asciz " offset:0x"

@@ -2,9 +2,9 @@
 #define __MBR_S__
     .code16
     .text
+    .extern mbr_signature
 #include "mbr.h"
 #include "segments.h"
-#include "prints.h"
 /*******************************************************************************
  * BIOS hands over to MBR:
  * The only things that are (nearly) certain are that
@@ -89,15 +89,6 @@ mbr_next_partition:
 /******************************************************************************/
 _finish:
     lret
-/******************************************************************************/
-    . = ptr_mbr_partition_table
-mbr_partition_table:
-#include "partition_table.S"
-/******************************************************************************/
-    . = ptr_mbr_signature
-mbr_signature:
-    .short MBR_MAGIC
-    . = sizeof_MBR
 /******************************************************************************/
 
 #endif /* __MBR_S__ */

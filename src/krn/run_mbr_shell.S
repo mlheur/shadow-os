@@ -76,7 +76,7 @@ mbr_target_mbr:     pushw   $MBR_SEGM
                     xorl    %ebx,           %ebx
                     movzbl  %al,            %edi
                     call    _chs_read
-rejumping_mbr:      ljmp    $0,             $MBR_SEGM<<4
+rejumping_mbr:      ljmp    $0,             $(MBR_SEGM<<4)
 
 mbr_shell_fn_ENT:   popw    %dx /* get back the bootdevice the BIOS passed to MBR */
 post_mbr_prompt:    /* ret not required, fall through to MBR since we're included inline there, not called */

@@ -1,6 +1,8 @@
 #ifndef __RAM_S__
 #define __RAM_S__
 
+#include "prints.h"
+
 msg_value:      .asciz " value:0x"
 DumpRAM:        pushaw
                 movw        $0xF000,        %bx
