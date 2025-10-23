@@ -31,13 +31,12 @@ relocmbr_copy_mbr:
     shrw    $2,                             %cx /* because assembly happens before linking. */
     rep     movsl
 relocmbr_verify:
-    cmpw    $(MBR_MAGIC),                   %es:(mbr_signature)
+    cmpw    $(MBR_MAGIC),    %es:(mbr_signature)
     jne     _finish
 relocmbr_align_partition_table:
     movw    $(aligned_partition_table),     %di
     movw    $(mbr_partition_table),         %si
-    movw    $(sizeof_partition_table),      %cx
-    shrw    $2,                             %cx /* divide by four */
+    movw    $(sizeof_partition_entry),      %cx /* happy coincidence that 4 bytes per long matches 4 partitions per drive */
     rep     movsl
 relocmbr_run_relocated_mbr:
     movw    $(1f),                          %si
@@ -50,14 +49,15 @@ relocmbr_run_relocated_mbr:
     popw    %es
 /******************************************************************************/
 lba_inquiry_prepare:
-    movw    $0x4100,                        %ax
-    movw    $0x55AA,                        %bx
+    movb    $0x41,                          %ah
+    movw    $(MBR_MAGIC),                   %bx
+    rorw    $8,                             %bx
 lba_inquiry_inquire:
     int     $0x13
 lba_inquiry_errcheck:
     jc      _finish
 lba_inquiry_validate_magic:
-    cmpw    $0xAA55,                        %bx
+    cmpw    $(MBR_MAGIC),                   %bx
     jne     _finish
 lba_inquiry_validate_EXRW: 
     testb   $1,                             %cl
@@ -82,7 +82,7 @@ mbr_use_partition_entry_as_lbacmd_packet:
     movw    $SEGM_BIOSBOOT,              6(%esi) /* save segment */
     movl    %eax,                       12(%esi) /* lba high: 0x00000000 */
 mbr_load_active_pbr:
-    movw    $0x4200,                        %ax  /* lba "read" */
+    movb    $0x42,                          %ah  /* lba "read" */
     int     $0x13
     jc      _finish
 mbr_check_is_bootable:
@@ -92,8 +92,7 @@ mbr_run_active_pbr:
     ljmp    $0,              $(SEGM_BIOSBOOT<<4)
 /******************************************************************************/
 mbr_next_partition:
-    addw    $(sizeof_partition_table),      %si /* increment */
-    shrw    $2,                             %si /* divide by four */
+    addw    $(sizeof_partition_entry),      %si /* increment */
     cmpw    $sizeof_MBR,                    %si /* check for rollover */
     jb      mbr_is_partition_active         /* not rolled over, test the partition */
 /******************************************************************************/
