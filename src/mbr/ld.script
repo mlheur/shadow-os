@@ -2,13 +2,13 @@ ENTRY(_start)
 SECTIONS {
     .text : {
         _start = .;
-        mbr.o(.text)
+        ../../objs/mbr.o(.text)
         . = 0x1BE;
         mbr_partition_table = .;
-        partition_table.o(.text)
+        ../../objs/partition_table.o(.text)
         . = 0x1FE;
         mbr_signature = .;
-        mbr_signature.o(.text)
+        ../../objs/mbr_signature.o(.text)
     }
     /DISCARD/ : { *(.data) *(.bss) }
 }

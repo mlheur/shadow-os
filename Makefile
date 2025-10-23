@@ -2,6 +2,8 @@ IMAGE := $(shell cat .image)
 
 MODULES := mbr krn
 BINARIES := $(foreach MODULE,$(MODULES),./bin/$(MODULE))
+SOURCES  := $(wildcard ./src/*/*.S)
+SOURCES  += $(wildcard ./src/include/*.h)
 
 LDSCRIPT 	:= ./ld.script
 
@@ -16,7 +18,7 @@ ${IMAGE} : $(BINARIES)
 	./helpers/add_padding.ksh ${IMAGE} && \
 	cat ${IMAGE} fake-hda[234].img > new-${IMAGE} && mv new-${IMAGE} ${IMAGE}
 
-$(BINARIES) :
+$(BINARIES) : $(SOURCES)
 	for MOD in $(MODULES); do $(MAKE) -C ./src/$${MOD}/; done
 
 .PHONY : clean

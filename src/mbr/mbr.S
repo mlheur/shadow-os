@@ -2,7 +2,6 @@
 #define __MBR_S__
     .code16
     .text
-    .extern mbr_signature
 #include "mbr.h"
 #include "segments.h"
 /*******************************************************************************

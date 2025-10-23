@@ -2,7 +2,7 @@ ENTRY(_start)
 SECTIONS {
     .text : {
         _start = .;
-        krn.o(.text)
+        ../../objs/krn.o(.text)
     }
     /DISCARD/ : { *(.data) *(.bss) }
 }
