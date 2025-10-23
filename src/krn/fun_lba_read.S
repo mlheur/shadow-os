@@ -1,10 +1,10 @@
 #ifndef __FUN_LBA_READ_S__
 #define __FUN_LBA_READ_S__
 
-#define LEN16_LBA_CMD 0x10
+#define sizeof_LBA_CMD 0x10
 
 /* we're done with the partition table, right? */
-    PTR16_LBA_CMD = _start + LEN16_MBR - LEN16_LBA_CMD
+    LBA_CMD = _start + sizeof_MBR - sizeof_LBA_CMD
 
 /*******************************************************************************
  * eax: segment:offset to write to      => Packet+6, Packet+4
@@ -19,10 +19,10 @@
 lbaread_set_pointer_to_packet:
     pushw   %cs
     popw    %ds
-    movl    $(PTR16_LBA_CMD),   %esi
+    movl    $(LBA_CMD),         %esi
 
 lbaread_transfer_args_to_packet:
-    movb    $LEN16_LBA_CMD,     %ds:(%esi)  /* save packet size */
+    movb    $sizeof_LBA_CMD,    %ds:(%esi)  /* save packet size */
     movb    $0,                 %ds:1(%esi) /* save magic */
     pushw   %dx                             /* guard */
     shrl    $16,                %edx        /* get the readlen from the upper word */

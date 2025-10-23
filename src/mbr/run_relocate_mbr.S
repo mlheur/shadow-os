@@ -7,14 +7,14 @@
 relocmbr_set_segments:
     movw    %cs,                                %cx
     movw    %cx,                                %ds
-    subw    $(LEN16_MBR>>4),                    %cx
+    subw    $(sizeof_MBR>>4),                   %cx
     movw    %cx,                                %es
 
 relocmbr_copy_mbr:
     xorw    %cx,                                %cx
     movw    %cx,                                %si
     movw    %cx,                                %di
-    movw    $(LEN16_MBR/4),                     %cx
+    movw    $(sizeof_MBR/4),                    %cx
     rep     movsl
 
 relocmbr_verify:
@@ -22,16 +22,15 @@ relocmbr_verify:
     jne     _finish
 
 relocmbr_align_partition_table:
-    PTR16_PARTITION_TABLE = LEN16_MBR - LEN16_PARTITION_TABLE
-    pushw   $PTR16_PARTITION_TABLE
+    pushw   $relocated_partition_table
     popw    %di
     pushw   $mbr_partition_table
     popw    %si
-    movw    $LEN16_PARTITION_TABLE/4,           %cx
+    movw    $sizeof_partition_table/4,          %cx
     rep     movsl
 
 relocmbr_ljmp_relocated:
-    ljmp    $(SEGM_BIOSBOOT-(LEN16_MBR>>4)),    $1f
+    ljmp    $(SEGM_BIOSBOOT-(sizeof_MBR>>4)),   $1f
 1:
 
 #endif /* __RUN_RELOCATE_MBR_S__ */

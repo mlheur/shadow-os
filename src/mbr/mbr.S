@@ -8,6 +8,8 @@
 #include "segments.h"
 #include "prints.h"
 
+    relocated_partition_table = mbr_partition_table + sizeof_MBR_magic
+
 /*******************************************************************************
  * BIOS hands over to MBR:
  * The only things that are (nearly) certain are that
@@ -21,8 +23,8 @@ _start:
     ljmp    $SEGM_BIOSBOOT,         $_mbr
 /******************************************************************************/
 mbr_next_partition:
-    addw    $LEN16_PARTITION_ENTRY, %si /* increment */
-    cmpw    $LEN16_MBR,             %si /* check for rollover */
+    addw    $sizeof_partition_entry, %si /* increment */
+    cmpw    $sizeof_MBR,             %si /* check for rollover */
     jb      mbr_is_partition_active /* not rolled over, test the partition */
 /******************************************************************************/
 _finish:
@@ -39,7 +41,7 @@ mbr_movw_cs_ds:
     popw    %ds
 
 mbr_set_esi_first_partition:
-    movw    $PTR16_PARTITION_TABLE, %si
+    movw    $relocated_partition_table, %si
 
 mbr_is_partition_active:
     cmpb    $0x80,                  %cs:(%esi)
@@ -60,7 +62,7 @@ mbr_load_active_pbr:
     jc      _finish
 
 mbr_check_is_bootable:
-    cmpw    $MBR_MAGIC,             (LEN16_MBR+mbr_signature)
+    cmpw    $MBR_MAGIC,             (sizeof_MBR+mbr_signature)
     jne     _finish
     
 mbr_run_active_pbr:
@@ -68,14 +70,14 @@ mbr_run_active_pbr:
 /******************************************************************************/
 
 /******************************************************************************/
-    . = _start + 0x1BE /* assert assembler error if MBR is too big */
+    . = ptr_mbr_partition_table
 mbr_partition_table:
 #include "partition_table.S"
-    . = _start + 0x1FE  /* assert assembler error if PT is too big */
+/******************************************************************************/
+    . = ptr_mbr_signature
 mbr_signature:
     .short MBR_MAGIC
-    . = _start + 0x200 /* assert assembler error if MBR_MAGIC is too big */
-    LEN16_MBR = . - _start
+    . = sizeof_MBR
 /******************************************************************************/
 
 #endif /* __MBR_S__ */

@@ -14,7 +14,6 @@
  * .long: starting LBA
  * .long: quantity LBA
  ******************************************************************************/
-1:
 P1.flag:    .byte   0x80 /* active */
 P1.head:    .byte   0x00 /* starts on head 0 */
 P1.cysleclo:.byte   0x02 /* starts on sector 2, mbr is on 1 */
@@ -25,7 +24,6 @@ P1.endcslo: .byte   0x02 /* just the first two sectors on head 2 */
 P1.endcshi: .byte   0x00 /* all within cylinder zero */
 P1.lba_off: .long   0x00000001
 P1.lba_len: .long   0x0000007F
-LEN16_PARTITION_ENTRY = .-1b
 
 P2.flag:    .byte   0x00 /* active */
 P2.head:    .byte   0x02 /* starts on head 2 */
@@ -59,6 +57,5 @@ P4.endcslo: .byte   0x23
 P4.endcshi: .byte   0x00
 P4.lba_off: .long   0x00001080
 P4.lba_len: .long   0x00000800
-LEN16_PARTITION_TABLE = .-1b
 
 #endif /* __PARTITION_TABLE_S__ */
