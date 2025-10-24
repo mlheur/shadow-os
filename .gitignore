@@ -3,7 +3,6 @@ objs
 bin
 dumps
 *.img
-.image
 *.pdf
 data
 *.bin
