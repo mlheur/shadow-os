@@ -6,16 +6,15 @@ SOURCES  := $(wildcard ./src/*/*.S)
 SOURCES  += $(wildcard ./src/include/*.h)
 
 SUBMAKES    := $(foreach MOD,$(MODULES),./src/$(MOD)/Makefile)
+LDSCRIPTS   := $(foreach MOD,$(MODULES),./src/$(MOD)/ld.script)
 
-${IMAGE} : $(BINARIES)
-	cat $(BINARIES) > ${IMAGE} && \
-	./helpers/add_padding.ksh ${IMAGE} && \
-	cat ${IMAGE} fake-hda[234].img > new-${IMAGE} && mv new-${IMAGE} ${IMAGE}
-
-$(BINARIES) : $(SOURCES) $(SUBMAKES)
+${IMAGE} : $(SOURCES) $(SUBMAKES) $(LDSCRIPTS)
 	@for MOD in $(MODULES); do \
 		$(MAKE) $${MOD} -C ./src/$${MOD}/ || exit; \
 	done
+	cat $(BINARIES) > ${IMAGE} && \
+	./helpers/add_padding.ksh ${IMAGE} && \
+	cat ${IMAGE} fake-hda[234].img > new-${IMAGE} && mv new-${IMAGE} ${IMAGE}
 
 .PHONY : clean
 clean :

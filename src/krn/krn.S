@@ -24,9 +24,15 @@
  *       SHADOW_OS was loaded at 0000:7C00, MBR long jumps here and here we are.
  ******************************************************************************/
 _start:
-0:  ljmp    $SEGM_BIOSBOOT,$1f
-1:  pushw   %cs
-    popw    %ds
+    call    1f
+1:  popw    %ax                 /* movw %ip, %ax */
+    subw    $(1b-_start),   %ax /* backtrack to _start */
+    shrw    $4,             %ax /* convert to a segment */
+    pushw   %ax                 /* put it on the stack */
+    pushw   $1f                 /* put the offset on the stack */
+    ljmp    *(%esp)             /* fixup cs */
+1:  addw    $4,             %sp /* free the stack consumption */
+    movw    %ax,            %ds /* align ds with cs */
     jmp     SHADOW_OS
 /******************************************************************************/
 osname: .asciz "(SHADOW)"

@@ -1,9 +1,31 @@
 #ifndef __MBR_S__
 #define __MBR_S__
-    .code16
+
+    .bss
+
+LBA_CMD_PACKET: /* linker will put this at 0x7000, 16 byte aligned */
+lcb.sizeof:     .byte 0
+lcb.magic:      .byte 0
+lcb.readlen:    .word 0
+lcb.writesegm:  .word 0
+lcb.writeoffs:  .word 0
+lcb.lba_low:    .long 0
+lcb.lba_high:   .long 0
+sizeof_LBA_CMD_PACKET = . - LBA_CMD_PACKET
+
+JUMP_POINTER:
+reljump_segm:   .word 0
+reljump_offs:   .word 0
+sizeof_JUMP_POINTER = . - JUMP_POINTER
+#define LONGJUMP(O,S) movw S,reljump_segm; movw O,reljump_offs; ljmp *JUMP_POINTER
+#define NEARJUMP(O,S) movw S,reljump_segm; movw O,reljump_offs;  jmp *JUMP_POINTER
+
     .text
+    .code16
+
 #include "mbr.h"
 #include "segments.h"
+
 /*******************************************************************************
  * BIOS hands over to MBR:
  * The only things that are (nearly) certain are that
@@ -13,90 +35,159 @@
  *  - and that only 512 bytes of the bootsector have been loaded.
  * -- https://wiki.osdev.org/System_Initialization_(x86)
  ******************************************************************************/
+
+
+/*******************************************************************************
+ * Phase 0: Guard DX. It's used to inquire if LBA mode is supported by the BIOS,
+ *          and again when performing the LBA read on PBR.  A good MBR will
+ *          pass this to PBR.  Perhaps also ds:si should point to the partition
+ *          entry in the MBR table.
+ ******************************************************************************/
+
 _start:
-/******************************************************************************/
-relocmbr_set_segments:
-    movw    $(SEGM_BIOSBOOT),               %cx
-    movw    %cx,                            %ds
-    shlw    $4,                             %cx /* three lines ... */
-    subw    $(sizeof_MBR),                  %cx /* to do subw $(sizeof_mbr>>4), ... */
-    shrw    $4,                             %cx /* because assembly happens before linking. */
-    movw    %cx,                            %es
-relocmbr_copy_mbr:
-    xorw    %cx,                            %cx
-    movw    %cx,                            %si
-    movw    %cx,                            %di
-    movw    $(sizeof_MBR),                  %cx /* two lines to do movw $(sizeof_MBR/4) ... */
-    shrw    $2,                             %cx /* because assembly happens before linking. */
+
+#define BOOTSEGM %gs
+#define BOOTOFFS %fs
+#define RELOCSEGM %es
+
+/*******************************************************************************
+ * Phase 1: Relocate the MBR backward to make room for PBR; BPR will also expect
+ *          to have been loaded by BIOS at _start since PBR could be MBR of a
+ *          floppy or can be PBR of a partition.  Floppy MBRs don't do what's
+ *          being done here, they just load their OS or run their application.
+ ******************************************************************************/
+
+mbr_load_bootvector:
+    call    1f
+1:  popw    %cx
+    subw    $(1b-_start),   %cx
+
+mbr_save_bootvector:
+    movw    %cx,            BOOTOFFS
+
+mbr_save_bootsegm:
+    shrw    $4,             %cx
+    movw    %cx,            BOOTSEGM
+
+mbr_memcpy_set_source_address:
+    movw    BOOTOFFS,       %cx
+    movw    %cx,            %si
+
+mbr_memcpy_set_target_address:
+    subw    $(sizeof_MBR),  %cx
+    movw    %cx,            %di
+
+mbr_save_relocsegm:
+    shrw    $4,             %cx
+    movw    %cx,            RELOCSEGM
+
+mbr_memcpy_relocate_mbr:
+    movw    $(longof_MBR),  %cx
     rep     movsl
-relocmbr_verify:
-    cmpw    $(MBR_MAGIC),    %es:(mbr_signature)
+
+/******************************************************************************/
+
+verify_mbr_memcpy_success:
+    cmpw    $(MBR_MAGIC),   BOOTSEGM:(mbr_signature)
     jne     _finish
-relocmbr_align_partition_table:
-    movw    $(aligned_partition_table),     %di
-    movw    $(mbr_partition_table),         %si
-    movw    $(sizeof_partition_entry),      %cx /* happy coincidence that 4 bytes per long matches 4 partitions per drive */
-    rep     movsl
-relocmbr_run_relocated_mbr:
-    movw    $(1f),                          %si
-    subw    $(sizeof_MBR),                  %si
-    addw    $(SEGM_BIOSBOOT<<4),            %si
-    pushw   %es
-    pushw   %si
-    jmp     *(%esp)
-1:  popw    %si
-    popw    %es
+
 /******************************************************************************/
+
+
+/*******************************************************************************
+ * Phase 2: Move execution to the MBR code that was memcpy'd backward by sizeof
+ *          MBR.  If the sizeof MBR was known at assembly time, this would be
+ *          a simple relative jump backward by that size + few bytes of the jump
+ *          instruction itself.  Since both those values are only properly known
+ *          at link time, MBR is forced to use an absolute jump whose address is
+ *          calculated at runtime, saved in ram, and used as a pointer. Do this.
+ ******************************************************************************/
+
+mbr_jump_to_relocated_mbr:
+    movw    BOOTOFFS,       %si /* start at the BIOS boot address */
+    subw    $(sizeof_MBR),  %si /* backtrack by the size of the MBR */
+    addw    $(1f),          %si /* fast forward past the jump instruction */
+    NEARJUMP($0,%si)
+1:  
+
+/******************************************************************************/
+
+
+/*******************************************************************************
+ * Phase 3: Ensure the BIOS supports LBA read, apparently that's Pentium & up.
+ ******************************************************************************/
+
 lba_inquiry_prepare:
-    movb    $0x41,                          %ah
-    movw    $(MBR_MAGIC),                   %bx
-    rorw    $8,                             %bx
-lba_inquiry_inquire:
-    int     $0x13
-lba_inquiry_errcheck:
-    jc      _finish
+    movb    $0x41,          %ah /* setup the function ID for BIOS Inquiry */
+    movw    $(MBR_MAGIC),   %bx /* doing in two steps to minize magic numbers in code */
+    rorw    $8,             %bx /* 0x55AA is needed to setup LBA inquiry */
+    int     $0x13               /* inquire */
+    jc      _finish             /* give up, return to BIOS on failure */
+
 lba_inquiry_validate_magic:
-    cmpw    $(MBR_MAGIC),                   %bx
-    jne     _finish
+    cmpw    $(MBR_MAGIC),   %bx /* We know LBA read is enabled when the magic is back to 0xAA55 */
+    jne     _finish             /* or bail to BIOS if it's not enabled */
+
 lba_inquiry_validate_EXRW: 
-    testb   $1,                             %cl
-    jz      _finish
+    testb   $1,             %cl /* finally, bit 1 must be set in the cx reply to be sure we have LBA read */
+    jz      _finish             /* else we return to BIOS */
+
 /******************************************************************************/
-mbr_set_esi_first_partition:
-    movw    $aligned_partition_table,       %si
+
+
+/*******************************************************************************
+ * Phase 4: Find the active partition.
+ ******************************************************************************/
+
+mbr_set_si_first_partition:
+    movw    $(aligned_partition_table), %si
+
 mbr_is_partition_active:
-    cmpb    $0x80,                    %es:(%esi)
+    cmpb    $0x80, RELOCSEGM:(%esi)
     jne     mbr_next_partition
-relocmbr_swap_es_ds:
-    pushw   %ds /* 0x7c00 */
-    pushw   %es /* 0x7a00 */
-    popw    %ds /* 0x7a00 */
-    popw    %es /* 0x7c00 */
+
+/******************************************************************************/
+
+
+/*******************************************************************************
+ * Phase 5: Use LBA read, load the active partition's PBR where BIOS loaded MBR
+ ******************************************************************************/
+
 mbr_use_partition_entry_as_lbacmd_packet:
-    xorl    %eax,                          %eax  /* get a zero */
-    movb    $0x10,                        (%esi) /* save packet size */
-    movb    %al,                         1(%esi) /* save magic: 0x00 */
-    movw    $1,                          2(%esi) /* save readlen */
-    movw    %ax,                         4(%esi) /* save offset: 0x0000 */
-    movw    $SEGM_BIOSBOOT,              6(%esi) /* save segment */
-    movl    %eax,                       12(%esi) /* lba high: 0x00000000 */
+    movl    %ds:8(%esi),    %eax
+    movl    %eax,           lcb.lba_low
+    xorl    %eax,           %eax  /* get a zero */
+    movl    %eax,           lcb.lba_high
+    movw    %ax,            lcb.writesegm
+    movb    %al,            lcb.magic
+    movw    BOOTSEGM,       lcb.writeoffs
+    movb    $0x10,          lcb.sizeof
+    movw    $1,             lcb.readlen
+
 mbr_load_active_pbr:
-    movb    $0x42,                          %ah  /* lba "read" */
-    int     $0x13
+    movb    $0x42,          %ah /* lba "read" function ID */
+    int     $0x13               
     jc      _finish
+
 mbr_check_is_bootable:
-    cmpw    $MBR_MAGIC,      %es:(mbr_signature)
+    cmpw    $MBR_MAGIC,     %es:(mbr_signature)
     jne     _finish
+
 mbr_run_active_pbr:
-    ljmp    $0,              $(SEGM_BIOSBOOT<<4)
+    LONGJUMP($0,BOOTOFFS)
+
 /******************************************************************************/
+
 mbr_next_partition:
-    addw    $(sizeof_partition_entry),      %si /* increment */
-    cmpw    $sizeof_MBR,                    %si /* check for rollover */
-    jb      mbr_is_partition_active         /* not rolled over, test the partition */
+    addw    $(sizeof_partition_entry),  %si /* increment */
+    cmpw    $sizeof_MBR,                %si /* check for rollover */
+    jb      mbr_is_partition_active         /* not rolled over, test flags */
+
 /******************************************************************************/
+
 _finish:
     lret
+
 /******************************************************************************/
 
 #endif /* __MBR_S__ */

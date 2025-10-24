@@ -15,7 +15,7 @@ LDSCRIPT 	:= ./ld.script
 AS       	:= gcc
 ASFLAGS  	:= -I$(INCDIR) -g -Wa,--32 -c
 LD       	:= ld
-LDFLAGS  	:= -static -s -dT $(LDSCRIPT)
+LDFLAGS  	:= -static -s -dT $(LDSCRIPT) -Map=$(DUMPDIR)/$(MODULE).symbols
 OBJDUMP     := objdump
 OBJOPTS     := -M att -m i8086
 

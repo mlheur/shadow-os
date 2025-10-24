@@ -2,12 +2,7 @@
 _start                  = 0x0000;
 mbr_partition_table     = 0x01BE;
 mbr_signature           = 0x01FE;
-sizeof_MBR              = 0x0200;
-
-/* calculated constants from hard constants and computed symbols */
-sizeof_partition_entry  = sizeof_partition_table / 4;
-sizeof_MBR_magic        = _start + sizeof_MBR - mbr_signature;
-aligned_partition_table = mbr_partition_table + sizeof_MBR_magic;
+mbr_heap                = 0x7000; /* through 0x79FF */
 
 /* Main linker script */
 ENTRY(_start)
@@ -22,8 +17,21 @@ SECTIONS {
 
         . = mbr_signature;
         ../../objs/mbr_signature.o(.text)
+        sizeof_MBR = . - _start;
     }
-    /DISCARD/ : { *(.data) *(.bss) }
+
+    .bss : {
+        . = mbr_heap;
+        ../../objs/_start.o(.bss)
+    }
+    
+    /DISCARD/ : { *(.data) }
 }
 OUTPUT_ARCH(i386)
 OUTPUT_FORMAT(binary)
+
+/* calculated constants from hard constants and computed symbols */
+longof_MBR              = sizeof_MBR / 4;
+sizeof_partition_entry  = sizeof_partition_table / 4;
+sizeof_MBR_magic        = _start + sizeof_MBR - mbr_signature;
+aligned_partition_table = mbr_partition_table + sizeof_MBR_magic;

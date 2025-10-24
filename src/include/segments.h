@@ -5,7 +5,8 @@
 /* 0000:0000 until 0000:03FF IVT Used by the BIOS, don't write here */
 /* 0040:0000 until 0040:00FF BDA Used by the BIOS, don't write here */
 /* [0040:0100 is 0050:0000] until 7000:FFFF Conventional Memory */
-#define SEGM_BIOSBOOT 0x07C0 /* BIOS loads us here */
+/* #define SEGM_BOOTHEAP 0x0700 /* 0700:0000 through 0700:09FF */
+/* #define SEGM_BIOSBOOT 0x07C0 /* BIOS loads us here */
 /* 8000:0000 until 9000:FFFF EBDA */
 /* A000:0000 until B000:FFFF VRAM */
 /* C000:0000 until C000:7FFF BIOS Expansion */
