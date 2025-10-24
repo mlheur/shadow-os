@@ -1,9 +1,9 @@
-IMAGE := shadow-os.img
+IMAGE 		:= shadow-os.img
+MODULES 	:= mbr krn
 
-MODULES := mbr krn
-BINARIES := $(foreach MODULE,$(MODULES),./bin/$(MODULE))
-SOURCES  := $(wildcard ./src/*/*.S)
-SOURCES  += $(wildcard ./src/include/*.h)
+BINARIES 	:= $(foreach MODULE,$(MODULES),./bin/$(MODULE))
+SOURCES  	:= $(wildcard ./src/*/*.S)
+SOURCES  	+= $(wildcard ./src/include/*.h)
 
 SUBMAKES    := $(foreach MOD,$(MODULES),./src/$(MOD)/Makefile)
 LDSCRIPTS   := $(foreach MOD,$(MODULES),./src/$(MOD)/ld.script)
@@ -15,6 +15,8 @@ FAKES       := $(foreach ID,2 3 4,fake-hda$(ID).img)
 
 MY_UID		:= $(shell id -u)
 MY_GID		:= $(shell id -g)
+
+
 
 ${IMAGE} : $(SOURCES) $(SUBMAKES) $(LDSCRIPTS) $(BUILDDIRS) $(FAKES)
 	@for MOD in $(MODULES); do \
