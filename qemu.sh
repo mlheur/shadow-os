@@ -7,7 +7,8 @@ else
 fi
 
 if [ -z "${IMAGE}" ]; then
-	IMAGE=`cat .image`
+	MF=`dirname $0`/Makefile
+	IMAGE=`awk '$1=="IMAGE"{print $NF}' "${MF}"`
 fi
 
 /usr/bin/qemu-system-i386 ${GDBOPTS} -cpu 486 -drive file="${IMAGE}",format=raw -m 1 -serial stdio
