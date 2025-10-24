@@ -1,4 +1,4 @@
-IMAGE := $(shell cat .image)
+IMAGE := shadow-os.img
 
 MODULES := mbr krn
 BINARIES := $(foreach MODULE,$(MODULES),./bin/$(MODULE))
