@@ -3,6 +3,18 @@ _start                  = 0x0000;
 mbr_partition_table     = 0x01BE;
 mbr_signature           = 0x01FE;
 mbr_heap                = 0x7000; /* through 0x79FF */
+sizeof_LBA_CMD_PACKET   = 0x10;
+sizeof_JUMP_POINTER     = 0x04;
+
+/* calculated constants from hard constants and computed symbols */
+longof_MBR              = sizeof_MBR / 4;
+sizeof_partition_entry  = sizeof_partition_table / 4;
+sizeof_MBR_magic        = _start + sizeof_MBR - mbr_signature;
+
+/* .bss without writing zeros to the raw static x86 binary */
+LBA_CMD_PACKET          = mbr_heap;
+JUMP_POINTER            = LBA_CMD_PACKET + sizeof_LBA_CMD_PACKET;
+mbr_heap                = JUMP_POINTER + sizeof_JUMP_POINTER;
 
 /* Main linker script */
 ENTRY(_start)
@@ -19,19 +31,7 @@ SECTIONS {
         ../../objs/mbr_signature.o(.text)
         sizeof_MBR = . - _start;
     }
-
-    .bss : {
-        . = mbr_heap;
-        ../../objs/_start.o(.bss)
-    }
-    
-    /DISCARD/ : { *(.data) }
+    /DISCARD/ : { *(.data) *(.bss) }
 }
 OUTPUT_ARCH(i386)
 OUTPUT_FORMAT(binary)
-
-/* calculated constants from hard constants and computed symbols */
-longof_MBR              = sizeof_MBR / 4;
-sizeof_partition_entry  = sizeof_partition_table / 4;
-sizeof_MBR_magic        = _start + sizeof_MBR - mbr_signature;
-aligned_partition_table = mbr_partition_table + sizeof_MBR_magic;
