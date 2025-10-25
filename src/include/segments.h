@@ -1,6 +1,11 @@
 #ifndef __SEGMENTS_H__
 #define __SEGMENTS_H__
 
+
+#ifndef XCHG_SEGMENTS
+#define XCHG_SEGMENTS(A,B) push A; push B; pop A; pop B
+#endif /* XCHG_SEGMENTS */
+
 /******************************************************************************/
 /* 0000:0000 until 0000:03FF IVT Used by the BIOS, don't write here */
 /* 0040:0000 until 0040:00FF BDA Used by the BIOS, don't write here */

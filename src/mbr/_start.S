@@ -5,8 +5,6 @@
 #define NEARJUMP(S,O) JUMP_TO_POINTER(jmp,S,O)
 #define LONGJUMP(S,O) JUMP_TO_POINTER(ljmp,S,O)
 
-#define SWAP_REGISTERS(A,B) push A; push B; pop A; pop B
-
     .text
     .code16
 
@@ -118,14 +116,14 @@ mbr_is_partition_active:
  * Phase 5: Use LBA read, load the active partition's PBR where BIOS loaded MBR
  ******************************************************************************/
 mbr_set_lbacmd_pointer:
-    SWAP_REGISTERS(%es,%ds)
+    XCHG_SEGMENTS(%es,%ds)
     movw    $(LBA_CMD_PACKET),  %di /* set the stosl pointer to the lbacmd */
 mbr_zero_lbacmd:
     movw    $(sizeof_LBA_CMD_PACKET), %cx
     shrw    $2,                 %cx   /* divide by four bytes per long */
     xorl    %eax,               %eax  /* get a zero */
     rep     stosl                     /* memset */
-    SWAP_REGISTERS(%es,%ds)
+    XCHG_SEGMENTS(%es,%ds)
 mbr_load_lbacmd_packet:
     movw    %si,                %di   /* save the pointer to active partition */
     movw    $(LBA_CMD_PACKET),  %si   /* set the int13 pointer to the lbacmd */
@@ -141,10 +139,24 @@ mbr_load_active_pbr:
 mbr_check_is_bootable:
     cmpw    $MBR_MAGIC, %es:(mbr_signature)
     jne     _finish
+
+/*******************************************************************************
+ * Phase 6: Cleanup and jump to PBR
+ ******************************************************************************/
 mbr_run_active_pbr:
-    SWAP_REGISTERS(%es,%ds)
-    movw    %di,                %si   /* get back the active partion */
-    LONGJUMP($0,BOOTOFFS)
+    xorl    %eax,%eax
+    movw    %ax,    %cs:(2+JUMP_POINTER) /* BOOTSEG is zero */
+    movw    BOOTOFFS, %cs:(JUMP_POINTER) /* BOOTOFFS is fs register that's about to be zerod out: set the longjmp pointer now. */
+    XCHG_SEGMENTS(%es,%ds) /* change from es:di --> partition */
+    movw    %di, %si  /* now to ds:si --> partition */
+    /* the rest go to zero, guarding dx */
+    movl    %eax,%ecx
+    movl    %eax,%ebx
+    movl    %eax,%edi
+    movw    %ax,%es
+    movw    %ax,%fs
+    movw    %ax,%gs
+    ljmp    *%cs:(JUMP_POINTER)
 /******************************************************************************/
 mbr_next_partition:
     addw    $(sizeof_partition_entry),  %si /* increment */

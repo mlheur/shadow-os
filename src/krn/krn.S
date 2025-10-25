@@ -8,7 +8,7 @@
 #include "segments.h"
 #include "prints.h"
 
-/* #define USE_TELETYPE /**/
+#define USE_TELETYPE /**/
 #define USE_SERIALIO /**/
 
 /*******************************************************************************
@@ -24,6 +24,9 @@
  *       SHADOW_OS was loaded at 0000:7C00, MBR long jumps here and here we are.
  ******************************************************************************/
 _start:
+    XCHG_SEGMENTS(%ds,%es)      /* now es:si points to our partition table entry */
+    xchgw   %si,%di             /* es:di --> partition */
+#if 0
     call    1f
 1:  popw    %ax                 /* movw %ip, %ax */
     subw    $(1b-_start),   %ax /* backtrack to _start */
@@ -33,6 +36,8 @@ _start:
     ljmp    *(%esp)             /* fixup cs */
 1:  addw    $4,             %sp /* free the stack consumption */
     movw    %ax,            %ds /* align ds with cs */
+#else
+#endif /* 0 */
     jmp     SHADOW_OS
 /******************************************************************************/
 osname: .asciz "(SHADOW)"

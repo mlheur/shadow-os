@@ -25,6 +25,7 @@ case "${MODULE}" in
         ;;
     *)
         "${HELPERS}/mkadd_symbols.sh" ./dumps/${MODULE}.symbols 0x7c00               >> project.seer
+        "${HELPERS}/mkadd_symbols.sh" ./dumps/${MODULE}.symbols               >> project.seer
 esac
 # Finish the file from 'set arch i8086' onward
 awk 'BEGIN{FLAG=0}{
